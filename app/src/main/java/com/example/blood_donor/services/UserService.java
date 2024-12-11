@@ -8,6 +8,7 @@ import com.example.blood_donor.errors.ErrorCode;
 import com.example.blood_donor.models.response.ApiResponse;
 import com.example.blood_donor.models.user.User;
 import com.example.blood_donor.models.user.UserType;
+import com.example.blood_donor.repositories.ISessionRepository;
 import com.example.blood_donor.repositories.IUserRepository;
 import com.example.blood_donor.services.interfaces.IAuthService;
 import com.example.blood_donor.services.interfaces.IUserService;
@@ -18,15 +19,18 @@ import java.util.UUID;
 
 public class UserService implements IUserService {
     private final IUserRepository userRepository;
+    private final ISessionRepository sessionRepository;
     private final IAuthService authService;
     private final IValidator<RegisterRequest> registerValidator;
 
     public UserService(
             IUserRepository userRepository,
+            ISessionRepository sessionRepository,
             IAuthService authService,
             IValidator<RegisterRequest> registerValidator
     ) {
         this.userRepository = userRepository;
+        this.sessionRepository = sessionRepository;
         this.authService = authService;
         this.registerValidator = registerValidator;
     }
@@ -62,8 +66,9 @@ public class UserService implements IUserService {
                     () -> new AppException(ErrorCode.DATABASE_ERROR, "Failed to create user")
             );
 
-            // Generate token
+            // Generate token and save session
             String token = authService.generateToken(savedUser);
+            sessionRepository.saveSession(token, savedUser.getUserId());
 
             return ApiResponse.success(new AuthResponse(savedUser, token));
 
@@ -86,11 +91,38 @@ public class UserService implements IUserService {
                 throw new AppException(ErrorCode.INVALID_CREDENTIALS);
             }
 
-            // Generate token
-            String token = authService.generateToken(user);
+            // Generate session token
+            String sessionToken = authService.generateToken(user);
 
-            return ApiResponse.success(new AuthResponse(user, token));
+            // Save session
+            sessionRepository.saveSession(sessionToken, user.getUserId());
 
+            return ApiResponse.success(new AuthResponse(user, sessionToken));
+
+        } catch (AppException e) {
+            return ApiResponse.error(e.getErrorCode(), e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public ApiResponse<Void> logout(String token) {
+        try {
+            sessionRepository.deleteSession(token);
+            return ApiResponse.success(null);
+        } catch (AppException e) {
+            return ApiResponse.error(e.getErrorCode(), e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public ApiResponse<Void> logoutAll(String userId) {
+        try {
+            sessionRepository.deleteAllUserSessions(userId);
+            return ApiResponse.success(null);
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         } catch (Exception e) {

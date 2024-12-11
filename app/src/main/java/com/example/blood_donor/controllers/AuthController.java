@@ -20,4 +20,12 @@ public class AuthController {
     public ApiResponse<AuthResponse> login(LoginRequest request) {
         return userService.login(request);
     }
+
+    public ApiResponse<Void> logout(String token) {
+        return userService.logout(token);
+    }
+
+    public ApiResponse<Void> logoutAll(String userId) {
+        return userService.logoutAll(userId);
+    }
 }

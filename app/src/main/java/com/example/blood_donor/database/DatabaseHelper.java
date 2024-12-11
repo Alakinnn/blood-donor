@@ -21,6 +21,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TABLE_LOCATIONS = "locations";
     private static final String TABLE_REGISTRATIONS = "registrations";
     private static final String TABLE_NOTIFICATIONS = "notifications";
+    private static final String TABLE_SESSIONS = "sessions";
 
     // Common column names
     private static final String KEY_ID = "id";
@@ -57,6 +58,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String CREATE_EMAIL_INDEX =
             "CREATE INDEX idx_users_email ON " + TABLE_USERS + "(" + KEY_EMAIL + ")";
 
+    private static final String CREATE_TABLE_SESSIONS =
+            "CREATE TABLE " + TABLE_SESSIONS + "(" +
+                    "token TEXT PRIMARY KEY," +
+                    "user_id TEXT NOT NULL," +
+                    "created_at INTEGER NOT NULL," +
+                    "FOREIGN KEY (user_id) REFERENCES " + TABLE_USERS + "(id)" +
+                    ")";
+
     // Constructor
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -65,11 +74,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         try {
-            // Create tables
+            // Create existing tables
             db.execSQL(CREATE_TABLE_USERS);
+
+            // Create sessions table
+            db.execSQL(
+                    CREATE_TABLE_SESSIONS
+            );
 
             // Create indices
             db.execSQL(CREATE_EMAIL_INDEX);
+            db.execSQL("CREATE INDEX idx_sessions_user_id ON sessions(user_id)");
         } catch (SQLException e) {
             Log.e("DatabaseHelper", "Error creating database", e);
             throw e;

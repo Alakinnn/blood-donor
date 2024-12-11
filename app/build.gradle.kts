@@ -29,6 +29,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    @Suppress("UnstableApiUsage")
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.jvmArgs("-XX:+ShowCodeDetailsInExceptionMessages") // Helpful for debugging
+            }
+        }
+    }
 }
 
 dependencies {
@@ -38,4 +48,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    testImplementation(libs.mockito.core)
+    testImplementation("org.robolectric:robolectric:4.10.3")
 }

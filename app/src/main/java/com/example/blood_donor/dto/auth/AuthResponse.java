@@ -12,4 +12,12 @@ public class AuthResponse {
     }
 
     // Getters
+
+    public User getUser() {
+        return user;
+    }
+
+    public String getToken() {
+        return token;
+    }
 }

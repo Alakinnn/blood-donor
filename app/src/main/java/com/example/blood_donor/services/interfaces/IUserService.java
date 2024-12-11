@@ -8,4 +8,6 @@ import com.example.blood_donor.models.response.ApiResponse;
 public interface IUserService {
     ApiResponse<AuthResponse> register(RegisterRequest request);
     ApiResponse<AuthResponse> login(LoginRequest request);
+    ApiResponse<Void> logout(String token);
+    ApiResponse<Void> logoutAll(String userId);
 }
