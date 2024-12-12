@@ -17,6 +17,8 @@ import com.example.blood_donor.models.location.Location;
 import com.example.blood_donor.models.response.ApiResponse;
 import com.example.blood_donor.repositories.EventRepository;
 import com.example.blood_donor.repositories.IEventRepository;
+import com.example.blood_donor.repositories.ILocationRepository;
+import com.example.blood_donor.repositories.IUserRepository;
 import com.example.blood_donor.services.EventCacheService;
 import com.example.blood_donor.services.EventService;
 
@@ -79,11 +81,17 @@ public class EventTests {
                 "host123"
         );
 
-        eventService = new EventService(eventRepository, eventCache);
+        // Mock repositories and services
+        eventRepository = mock(IEventRepository.class);
+        ILocationRepository locationRepository = mock(ILocationRepository.class);
+        IUserRepository userRepository = mock(IUserRepository.class);
+        eventCache = mock(EventCacheService.class);
 
-        when(dbHelper.getReadableDatabase()).thenReturn(db);
-        when(dbHelper.getWritableDatabase()).thenReturn(db);
+        // Initialize EventService with mocks
+        eventService = new EventService(eventRepository, eventCache, locationRepository, userRepository);
     }
+
+
 
     @Test
     public void testGetEventSummaries() throws AppException {
@@ -129,17 +137,16 @@ public class EventTests {
                 .thenReturn(Optional.of(testEvent));
 
         // Act
-        ApiResponse<DonationEvent> response =
-                eventService.getEventDetails("event123");
+        ApiResponse<DonationEvent> response = eventService.getEventDetails("event123");
 
         // Assert
         assertTrue("Response should be successful", response.isSuccess());
         assertNotNull("Response data should not be null", response.getData());
-        assertEquals("Event ID should match", testEvent.getEventId(),
-                response.getData().getEventId());
+        assertEquals("Event ID should match", testEvent.getEventId(), response.getData().getEventId());
 
         // Verify repository was not called
         verify(eventRepository, never()).findById(any());
+        verify(eventCache).getCachedEventDetails("event123");
     }
 
     @Test
@@ -151,18 +158,17 @@ public class EventTests {
                 .thenReturn(Optional.of(testEvent));
 
         // Act
-        ApiResponse<DonationEvent> response =
-                eventService.getEventDetails("event123");
+        ApiResponse<DonationEvent> response = eventService.getEventDetails("event123");
 
         // Assert
         assertTrue("Response should be successful", response.isSuccess());
         assertNotNull("Response data should not be null", response.getData());
-        assertEquals("Event ID should match", testEvent.getEventId(),
-                response.getData().getEventId());
+        assertEquals("Event ID should match", testEvent.getEventId(), response.getData().getEventId());
 
         // Verify cache was checked before repository
         verify(eventCache).getCachedEventDetails("event123");
         verify(eventRepository).findById("event123");
+        verify(eventCache).cacheEventDetails("event123", testEvent);
     }
 
     @Test

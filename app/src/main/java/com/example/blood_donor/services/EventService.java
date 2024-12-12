@@ -1,26 +1,84 @@
 package com.example.blood_donor.services;
 
+import com.example.blood_donor.dto.events.CreateEventDTO;
 import com.example.blood_donor.dto.locations.EventQueryDTO;
 import com.example.blood_donor.dto.locations.EventSummaryDTO;
 import com.example.blood_donor.errors.AppException;
 import com.example.blood_donor.errors.ErrorCode;
 import com.example.blood_donor.models.event.DonationEvent;
+import com.example.blood_donor.models.location.Location;
 import com.example.blood_donor.models.response.ApiResponse;
+import com.example.blood_donor.models.user.User;
+import com.example.blood_donor.models.user.UserType;
 import com.example.blood_donor.repositories.IEventRepository;
+import com.example.blood_donor.repositories.ILocationRepository;
+import com.example.blood_donor.repositories.IUserRepository;
 import com.example.blood_donor.services.interfaces.IEventService;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class EventService implements IEventService {
     private final IEventRepository eventRepository;
+    private final ILocationRepository locationRepository;
+    private final IUserRepository userRepository;
     private final EventCacheService cacheService;
 
+
     public EventService(IEventRepository eventRepository,
-                        EventCacheService cacheService) {
+                        EventCacheService cacheService,
+                        ILocationRepository locationRepository,
+                        IUserRepository userRepository) {
         this.eventRepository = eventRepository;
         this.cacheService = cacheService;
+        this.userRepository = userRepository;
+        this.locationRepository = locationRepository;
+    }
+
+    public ApiResponse<DonationEvent> createEvent(String hostId, CreateEventDTO dto) {
+        try {
+            // Validate host exists and is a site manager
+            User host = userRepository.findById(hostId)
+                    .orElseThrow(() -> new AppException(ErrorCode.INVALID_INPUT, "Host not found"));
+
+            if (host.getUserType() != UserType.SITE_MANAGER) {
+                throw new AppException(ErrorCode.INVALID_INPUT,
+                        "Only site managers can create events");
+            }
+
+            // Create location first
+            Location location = new Location.Builder()
+                    .locationId(UUID.randomUUID().toString())
+                    .address(dto.getAddress())
+                    .coordinates(dto.getLatitude(), dto.getLongitude())
+                    .description(dto.getLocationDescription())
+                    .build();
+
+            locationRepository.save(location);
+
+            // Create event
+            DonationEvent event = new DonationEvent(
+                    UUID.randomUUID().toString(),
+                    dto.getTitle(),
+                    dto.getDescription(),
+                    dto.getStartTime(),
+                    dto.getEndTime(),
+                    location,
+                    dto.getRequiredBloodTypes(),
+                    dto.getBloodGoal(),
+                    hostId
+            );
+
+            eventRepository.save(event);
+            return ApiResponse.success(event);
+
+        } catch (AppException e) {
+            return ApiResponse.error(e.getErrorCode(), e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override

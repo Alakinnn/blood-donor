@@ -1,11 +1,16 @@
 package com.example.blood_donor.repositories;
 
+import static com.example.blood_donor.database.DatabaseHelper.TABLE_EVENTS;
+
+import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 
 import com.example.blood_donor.database.DatabaseHelper;
 import com.example.blood_donor.dto.locations.EventQueryDTO;
 import com.example.blood_donor.errors.AppException;
+import com.example.blood_donor.errors.ErrorCode;
 import com.example.blood_donor.models.event.DonationEvent;
 import com.example.blood_donor.models.location.Location;
 import com.example.blood_donor.utils.QueryBuilder;
@@ -225,6 +230,45 @@ public class EventRepository implements IEventRepository {
         } finally {
             if (cursor != null) {
                 cursor.close();
+            }
+        }
+    }
+
+    @Override
+    public Optional<DonationEvent> save(DonationEvent event) throws AppException {
+        SQLiteDatabase db = null;
+        try {
+            db = dbHelper.getWritableDatabase();
+            db.beginTransaction();
+
+            ContentValues values = new ContentValues();
+            values.put("id", event.getEventId());
+            values.put("title", event.getTitle());
+            values.put("description", event.getDescription());
+            values.put("start_time", event.getStartTime());
+            values.put("end_time", event.getEndTime());
+            values.put("blood_goal", event.getBloodGoal());
+            values.put("current_blood_collected", event.getCurrentBloodCollected());
+            values.put("required_blood_types", new JSONArray(event.getRequiredBloodTypes()).toString());
+            values.put("host_id", event.getHostId());
+            values.put("status", event.getStatus().name());
+            values.put("location_id", event.getLocation().getLocationId());
+            values.put("created_at", System.currentTimeMillis());
+            values.put("updated_at", System.currentTimeMillis());
+
+            long result = db.insert(TABLE_EVENTS, null, values);
+            if (result == -1) {
+                throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to save event");
+            }
+
+            db.setTransactionSuccessful();
+            return Optional.of(event);
+
+        } catch (SQLiteException e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
+        } finally {
+            if (db != null) {
+                db.endTransaction();
             }
         }
     }

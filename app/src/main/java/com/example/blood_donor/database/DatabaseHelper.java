@@ -16,12 +16,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final int DATABASE_VERSION = 1;
 
     // Table Names
-    private static final String TABLE_USERS = "users";
-    private static final String TABLE_EVENTS = "events";
-    private static final String TABLE_LOCATIONS = "locations";
-    private static final String TABLE_REGISTRATIONS = "registrations";
-    private static final String TABLE_NOTIFICATIONS = "notifications";
-    private static final String TABLE_SESSIONS = "sessions";
+    public static final String TABLE_USERS = "users";
+    public static final String TABLE_EVENTS = "events";
+    public static final String TABLE_LOCATIONS = "locations";
+    public static final String TABLE_REGISTRATIONS = "registrations";
+    public static final String TABLE_NOTIFICATIONS = "notifications";
+    public static final String TABLE_SESSIONS = "sessions";
 
     // Common column names
     private static final String KEY_ID = "id";
@@ -81,7 +81,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "longitude REAL NOT NULL," +
                     "description TEXT," +
                     "created_at INTEGER NOT NULL," +
-                    "updated_at INTEGER NOT NULL" +
+                    "updated_at INTEGER NOT NULL," +
+                    "CHECK (latitude >= -90 AND latitude <= 90 AND " +
+                    "longitude >= -180 AND longitude <= 180)" +
                     ")";
     private static final String CREATE_TABLE_SESSIONS =
             "CREATE TABLE " + TABLE_SESSIONS + "(" +
@@ -102,6 +104,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "FOREIGN KEY (user_id) REFERENCES " + TABLE_USERS + "(id) ON DELETE CASCADE," +
                     "FOREIGN KEY (event_id) REFERENCES " + TABLE_EVENTS + "(id) ON DELETE CASCADE" +
                     ")";
+
+    private static final String CREATE_LOCATION_INDEXES =
+            "CREATE INDEX IF NOT EXISTS idx_location_coordinates ON " +
+                    "locations(latitude, longitude)";
+
+    private static final String CREATE_LOCATION_TRIGGERS =
+            "CREATE TRIGGER IF NOT EXISTS validate_coordinates " +
+                    "BEFORE INSERT ON locations " +
+                    "BEGIN " +
+                    "    SELECT CASE " +
+                    "        WHEN NEW.latitude < -90 OR NEW.latitude > 90 OR " +
+                    "             NEW.longitude < -180 OR NEW.longitude > 180 " +
+                    "        THEN RAISE(ABORT, 'Invalid coordinates') " +
+                    "    END; " +
+                    "END;";
 
     // Constructor
     public DatabaseHelper(Context context) {
@@ -141,6 +158,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
             // Create indexes for Locations
             db.execSQL("CREATE INDEX idx_locations_coords ON locations(latitude, longitude)");
+            db.execSQL(CREATE_LOCATION_INDEXES);
+            db.execSQL(CREATE_LOCATION_TRIGGERS);
         } catch (SQLException e) {
             Log.e("DatabaseHelper", "Error creating database", e);
             throw e;
@@ -215,4 +234,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         }
     }
+
+    private static final String LOCATION_TABLE_CONSTRAINTS =
+            "CHECK (latitude >= -90 AND latitude <= 90 AND " +
+                    "longitude >= -180 AND longitude <= 180)";
 }
