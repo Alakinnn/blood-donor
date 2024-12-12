@@ -2,6 +2,7 @@ package com.example.blood_donor.services;
 
 import com.example.blood_donor.models.donation.RegistrationType;
 import com.example.blood_donor.models.event.DonationEvent;
+import com.example.blood_donor.models.event.EventStatus;
 import com.example.blood_donor.models.response.ApiResponse;
 import com.example.blood_donor.models.user.User;
 import com.example.blood_donor.errors.AppException;
@@ -26,6 +27,30 @@ public class RegistrationService {
         this.eventRepository = eventRepository;
     }
 
+    private void validateEventStatus(DonationEvent event) throws AppException {
+        // Check if event has expired
+        if (event.getEndTime() < System.currentTimeMillis()) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Event has expired");
+        }
+
+        // Check event status
+        EventStatus status = event.getStatus();
+        if (status == EventStatus.COMPLETED || status == EventStatus.CANCELLED) {
+            throw new AppException(
+                    ErrorCode.INVALID_INPUT,
+                    String.format("Cannot register for %s event", status.toString().toLowerCase())
+            );
+        }
+
+        // Optionally, you might want to only allow registration for specific statuses
+        if (status != EventStatus.UPCOMING && status != EventStatus.IN_PROGRESS) {
+            throw new AppException(
+                    ErrorCode.INVALID_INPUT,
+                    "Registration is only allowed for upcoming or in-progress events"
+            );
+        }
+    }
+
     public ApiResponse<Boolean> register(String userId, String eventId) {
         try {
             // Validate input
@@ -46,10 +71,8 @@ public class RegistrationService {
             DonationEvent event = eventRepository.findById(eventId)
                     .orElseThrow(() -> new AppException(ErrorCode.INVALID_INPUT, "Event not found"));
 
-            // Validate event timing
-            if (event.getEndTime() < System.currentTimeMillis()) {
-                throw new AppException(ErrorCode.INVALID_INPUT, "Event has expired");
-            }
+            // Validate event status
+            validateEventStatus(event);
 
             // Determine registration type based on user type
             RegistrationType type = (user.getUserType() == UserType.SITE_MANAGER)

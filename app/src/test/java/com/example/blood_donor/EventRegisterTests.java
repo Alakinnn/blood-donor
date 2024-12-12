@@ -10,7 +10,6 @@ import android.database.sqlite.SQLiteDatabase;
 import com.example.blood_donor.database.DatabaseHelper;
 import com.example.blood_donor.errors.AppException;
 import com.example.blood_donor.errors.ErrorCode;
-import com.example.blood_donor.models.donation.Registration;
 import com.example.blood_donor.models.donation.RegistrationType;
 import com.example.blood_donor.models.event.DonationEvent;
 import com.example.blood_donor.models.event.EventStatus;
@@ -294,5 +293,28 @@ public class EventRegisterTests {
                 ErrorCode.INVALID_INPUT, response.getErrorCode());
         assertTrue("Error message should mention event not found",
                 response.getMessage().toLowerCase().contains("event not found"));
+    }
+
+    @Test
+    public void testRegistrationForCompletedEvent() throws AppException {
+        // Arrange
+        DonationEvent completedEvent = activeEvent;  // Use your test event
+        completedEvent.setStatus(EventStatus.COMPLETED);
+
+        when(userRepository.findById(testDonor.getUserId()))
+                .thenReturn(Optional.of(testDonor));
+        when(eventRepository.findById(completedEvent.getEventId()))
+                .thenReturn(Optional.of(completedEvent));
+
+        // Act
+        ApiResponse<Boolean> response = registrationService
+                .register(testDonor.getUserId(), completedEvent.getEventId());
+
+        // Assert
+        assertFalse("Registration should fail", response.isSuccess());
+        assertEquals("Should return correct error code",
+                ErrorCode.INVALID_INPUT, response.getErrorCode());
+        assertTrue("Error message should mention completed status",
+                response.getMessage().toLowerCase().contains("completed"));
     }
 }
