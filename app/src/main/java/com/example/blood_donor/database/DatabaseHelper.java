@@ -83,16 +83,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "created_at INTEGER NOT NULL," +
                     "updated_at INTEGER NOT NULL" +
                     ")";
-    // Index for email searches
-    private static final String CREATE_EMAIL_INDEX =
-            "CREATE INDEX idx_users_email ON " + TABLE_USERS + "(" + KEY_EMAIL + ")";
-
     private static final String CREATE_TABLE_SESSIONS =
             "CREATE TABLE " + TABLE_SESSIONS + "(" +
                     "token TEXT PRIMARY KEY," +
                     "user_id TEXT NOT NULL," +
                     "created_at INTEGER NOT NULL," +
                     "FOREIGN KEY (user_id) REFERENCES " + TABLE_USERS + "(id)" +
+                    ")";
+
+    private static final String CREATE_TABLE_REGISTRATIONS =
+            "CREATE TABLE " + TABLE_REGISTRATIONS + "(" +
+                    "registration_id TEXT PRIMARY KEY," +
+                    "user_id TEXT NOT NULL," +
+                    "event_id TEXT NOT NULL," +
+                    "type TEXT NOT NULL," +  // DONOR or VOLUNTEER
+                    "registration_time INTEGER NOT NULL," +
+                    "status TEXT NOT NULL DEFAULT 'ACTIVE'," + // Add status field with default
+                    "FOREIGN KEY (user_id) REFERENCES " + TABLE_USERS + "(id) ON DELETE CASCADE," +
+                    "FOREIGN KEY (event_id) REFERENCES " + TABLE_EVENTS + "(id) ON DELETE CASCADE" +
                     ")";
 
     // Constructor
@@ -112,13 +120,27 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             );
             db.execSQL(CREATE_TABLE_LOCATIONS);
             db.execSQL(CREATE_TABLE_EVENTS);
+            // Add in onCreate():
+            db.execSQL(CREATE_TABLE_REGISTRATIONS);
+            // Create indexes for Users
+            db.execSQL("CREATE INDEX idx_users_email ON users(email)");
 
-            // Create indices
-            db.execSQL(CREATE_EMAIL_INDEX);
+            // Create indexes for Sessions
             db.execSQL("CREATE INDEX idx_sessions_user_id ON sessions(user_id)");
+
+            // Create indexes for Events
             db.execSQL("CREATE INDEX idx_events_start_time ON events(start_time)");
             db.execSQL("CREATE INDEX idx_events_status ON events(status)");
             db.execSQL("CREATE INDEX idx_events_location ON events(location_id)");
+            db.execSQL("CREATE INDEX idx_events_host ON events(host_id)");
+
+            // Create indexes for Registrations
+            db.execSQL("CREATE INDEX idx_registrations_user_event ON registrations(user_id, event_id)");
+            db.execSQL("CREATE INDEX idx_registrations_status ON registrations(status)");
+            db.execSQL("CREATE INDEX idx_registrations_type_status ON registrations(type, status)");
+
+            // Create indexes for Locations
+            db.execSQL("CREATE INDEX idx_locations_coords ON locations(latitude, longitude)");
         } catch (SQLException e) {
             Log.e("DatabaseHelper", "Error creating database", e);
             throw e;
