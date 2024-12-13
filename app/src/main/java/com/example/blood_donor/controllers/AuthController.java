@@ -2,7 +2,6 @@ package com.example.blood_donor.controllers;
 
 import com.example.blood_donor.dto.auth.AuthResponse;
 import com.example.blood_donor.dto.auth.LoginRequest;
-import com.example.blood_donor.dto.auth.RegisterRequest;
 import com.example.blood_donor.models.response.ApiResponse;
 import com.example.blood_donor.services.interfaces.IUserService;
 
@@ -11,10 +10,6 @@ public class AuthController {
 
     public AuthController(IUserService userService) {
         this.userService = userService;
-    }
-
-    public ApiResponse<AuthResponse> register(RegisterRequest request) {
-        return userService.register(request);
     }
 
     public ApiResponse<AuthResponse> login(LoginRequest request) {

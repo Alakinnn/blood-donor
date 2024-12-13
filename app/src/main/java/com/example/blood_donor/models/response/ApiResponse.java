@@ -1,5 +1,6 @@
 package com.example.blood_donor.models.response;
 
+import com.example.blood_donor.errors.AppException;
 import com.example.blood_donor.errors.ErrorCode;
 
 public class ApiResponse<T> {
@@ -32,4 +33,9 @@ public class ApiResponse<T> {
     public boolean isSuccess() { return success; }
     public ErrorCode getErrorCode() { return errorCode; }
     public String getMessage() { return message; }
+    public void throwErrorIfPresent() throws AppException {
+        if (!success && errorCode != null) {
+            throw new AppException(errorCode, message);
+        }
+    }
 }
