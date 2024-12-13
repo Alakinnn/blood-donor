@@ -18,7 +18,10 @@ public class DonationEvent {
     private EventStatus status;
     private Double distance; // Add this field
     // Getters and setters
-
+    private int donorCount;
+    private int volunteerCount;
+    private String hostName;
+    private String hostPhoneNumber;
 
     public DonationEvent(String eventId, String title, String description,
                          long startTime, long endTime, Location location,
@@ -32,11 +35,24 @@ public class DonationEvent {
         this.location = location;
         this.requiredBloodTypes = requiredBloodTypes;
         this.bloodGoal = bloodGoal;
-        this.currentBloodCollected = 0.0;  // Initialize to 0
+        this.currentBloodCollected = 0.0;
         this.hostId = hostId;
-        this.status = EventStatus.UPCOMING;  // Set default status
-        this.distance = null;  // Initialize distance as null
+        this.status = EventStatus.UPCOMING;
+        this.distance = null;
+        this.donorCount = 0;
+        this.volunteerCount = 0;
+        this.hostName = null;
+        this.hostPhoneNumber = null;
     }
+
+    public int getDonorCount() { return donorCount; }
+    public void setDonorCount(int donorCount) { this.donorCount = donorCount; }
+    public int getVolunteerCount() { return volunteerCount; }
+    public void setVolunteerCount(int volunteerCount) { this.volunteerCount = volunteerCount; }
+    public String getHostName() { return hostName; }
+    public void setHostName(String hostName) { this.hostName = hostName; }
+    public String getHostPhoneNumber() { return hostPhoneNumber; }
+    public void setHostPhoneNumber(String hostPhoneNumber) { this.hostPhoneNumber = hostPhoneNumber; }
 
     public String getEventId() {
         return eventId;

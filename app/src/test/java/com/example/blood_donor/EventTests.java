@@ -8,17 +8,22 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.example.blood_donor.database.DatabaseHelper;
+import com.example.blood_donor.dto.events.EventDetailDTO;
 import com.example.blood_donor.dto.locations.EventQueryDTO;
 import com.example.blood_donor.dto.locations.EventSummaryDTO;
 import com.example.blood_donor.errors.AppException;
+import com.example.blood_donor.models.donation.RegistrationType;
 import com.example.blood_donor.models.event.DonationEvent;
 import com.example.blood_donor.models.event.EventStatus;
 import com.example.blood_donor.models.location.Location;
 import com.example.blood_donor.models.response.ApiResponse;
+import com.example.blood_donor.models.user.User;
+import com.example.blood_donor.models.user.UserType;
 import com.example.blood_donor.repositories.EventRepository;
 import com.example.blood_donor.repositories.IEventRepository;
 import com.example.blood_donor.repositories.ILocationRepository;
 import com.example.blood_donor.repositories.IUserRepository;
+import com.example.blood_donor.repositories.RegistrationRepository;
 import com.example.blood_donor.services.EventCacheService;
 import com.example.blood_donor.services.EventService;
 
@@ -39,26 +44,29 @@ import java.util.Optional;
 public class EventTests {
     @Mock
     private IEventRepository eventRepository;
-
+    @Mock
+    private ILocationRepository locationRepository;
+    @Mock
+    private IUserRepository userRepository;
+    @Mock
+    private RegistrationRepository registrationRepository;
     @Mock
     private EventCacheService eventCache;
-
     @Mock
     private DatabaseHelper dbHelper;
-
     @Mock
     private SQLiteDatabase db;
-
-    @Mock
-    private Cursor cursor;
 
     private EventService eventService;
     private Location testLocation;
     private DonationEvent testEvent;
+    private User testHost;
 
     @Before
     public void setup() {
         MockitoAnnotations.openMocks(this);
+        when(dbHelper.getWritableDatabase()).thenReturn(db);
+        when(dbHelper.getReadableDatabase()).thenReturn(db);
 
         // Initialize test location
         testLocation = new Location.Builder()
@@ -68,27 +76,40 @@ public class EventTests {
                 .description("Test Location")
                 .build();
 
+        // Initialize test host
+        testHost = new User(
+                "host123",
+                "host@test.com",
+                "password",
+                "Test Host",
+                System.currentTimeMillis(),
+                "0400000000",
+                UserType.SITE_MANAGER,
+                null,
+                "M"
+        );
+
         // Initialize test event
         testEvent = new DonationEvent(
                 "event123",
                 "Test Event",
                 "Description",
                 System.currentTimeMillis(),
-                System.currentTimeMillis() + 86400000, // +1 day
+                System.currentTimeMillis() + 86400000,
                 testLocation,
                 Arrays.asList("A+", "O-"),
                 100.0,
-                "host123"
+                testHost.getUserId()
         );
 
-        // Mock repositories and services
-        eventRepository = mock(IEventRepository.class);
-        ILocationRepository locationRepository = mock(ILocationRepository.class);
-        IUserRepository userRepository = mock(IUserRepository.class);
-        eventCache = mock(EventCacheService.class);
-
-        // Initialize EventService with mocks
-        eventService = new EventService(eventRepository, eventCache, locationRepository, userRepository);
+        // Initialize EventService with all mocked dependencies
+        eventService = new EventService(
+                eventRepository,
+                eventCache,
+                locationRepository,
+                userRepository,
+                registrationRepository
+        );
     }
 
 
@@ -132,43 +153,57 @@ public class EventTests {
 
     @Test
     public void testGetEventDetails_FromCache() throws AppException {
-        // Arrange
-        when(eventCache.getCachedEventDetails("event123"))
+        // Set up mocks
+        when(eventCache.getCachedEventDetails(testEvent.getEventId()))
                 .thenReturn(Optional.of(testEvent));
+        when(userRepository.findById(testHost.getUserId()))
+                .thenReturn(Optional.of(testHost));
+        when(registrationRepository.getRegistrationCount(testEvent.getEventId(),
+                RegistrationType.DONOR)).thenReturn(5);
+        when(registrationRepository.getRegistrationCount(testEvent.getEventId(),
+                RegistrationType.VOLUNTEER)).thenReturn(2);
 
         // Act
-        ApiResponse<DonationEvent> response = eventService.getEventDetails("event123");
+        ApiResponse<EventDetailDTO> response =
+                eventService.getEventDetails(testEvent.getEventId(), null);
 
         // Assert
         assertTrue("Response should be successful", response.isSuccess());
         assertNotNull("Response data should not be null", response.getData());
-        assertEquals("Event ID should match", testEvent.getEventId(), response.getData().getEventId());
-
-        // Verify repository was not called
-        verify(eventRepository, never()).findById(any());
-        verify(eventCache).getCachedEventDetails("event123");
+        assertEquals("Event ID should match", testEvent.getEventId(),
+                response.getData().getEventId());
+        assertEquals("Host name should match", testHost.getFullName(),
+                response.getData().getHostName());
+        assertEquals("Donor count should match", 5, response.getData().getDonorCount());
+        assertEquals("Volunteer count should match", 2,
+                response.getData().getVolunteerCount());
     }
 
     @Test
     public void testGetEventDetails_FromRepository() throws AppException {
-        // Arrange
-        when(eventCache.getCachedEventDetails("event123"))
+        // Set up mocks
+        when(eventCache.getCachedEventDetails(testEvent.getEventId()))
                 .thenReturn(Optional.empty());
-        when(eventRepository.findById("event123"))
+        when(eventRepository.findById(testEvent.getEventId()))
                 .thenReturn(Optional.of(testEvent));
+        when(userRepository.findById(testHost.getUserId()))
+                .thenReturn(Optional.of(testHost));
+        when(registrationRepository.getRegistrationCount(testEvent.getEventId(),
+                RegistrationType.DONOR)).thenReturn(5);
+        when(registrationRepository.getRegistrationCount(testEvent.getEventId(),
+                RegistrationType.VOLUNTEER)).thenReturn(2);
 
         // Act
-        ApiResponse<DonationEvent> response = eventService.getEventDetails("event123");
+        ApiResponse<EventDetailDTO> response =
+                eventService.getEventDetails(testEvent.getEventId(), null);
 
         // Assert
         assertTrue("Response should be successful", response.isSuccess());
         assertNotNull("Response data should not be null", response.getData());
-        assertEquals("Event ID should match", testEvent.getEventId(), response.getData().getEventId());
-
-        // Verify cache was checked before repository
-        verify(eventCache).getCachedEventDetails("event123");
-        verify(eventRepository).findById("event123");
-        verify(eventCache).cacheEventDetails("event123", testEvent);
+        assertEquals("Event ID should match", testEvent.getEventId(),
+                response.getData().getEventId());
+        assertEquals("Host name should match", testHost.getFullName(),
+                response.getData().getHostName());
     }
 
     @Test

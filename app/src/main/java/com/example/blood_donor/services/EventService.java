@@ -1,10 +1,12 @@
 package com.example.blood_donor.services;
 
 import com.example.blood_donor.dto.events.CreateEventDTO;
+import com.example.blood_donor.dto.events.EventDetailDTO;
 import com.example.blood_donor.dto.locations.EventQueryDTO;
 import com.example.blood_donor.dto.locations.EventSummaryDTO;
 import com.example.blood_donor.errors.AppException;
 import com.example.blood_donor.errors.ErrorCode;
+import com.example.blood_donor.models.donation.RegistrationType;
 import com.example.blood_donor.models.event.DonationEvent;
 import com.example.blood_donor.models.location.Location;
 import com.example.blood_donor.models.response.ApiResponse;
@@ -12,11 +14,12 @@ import com.example.blood_donor.models.user.User;
 import com.example.blood_donor.models.user.UserType;
 import com.example.blood_donor.repositories.IEventRepository;
 import com.example.blood_donor.repositories.ILocationRepository;
+import com.example.blood_donor.repositories.IRegistrationRepository;
 import com.example.blood_donor.repositories.IUserRepository;
+import com.example.blood_donor.repositories.RegistrationRepository;
 import com.example.blood_donor.services.interfaces.IEventService;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,17 +27,18 @@ public class EventService implements IEventService {
     private final IEventRepository eventRepository;
     private final ILocationRepository locationRepository;
     private final IUserRepository userRepository;
+    private final RegistrationRepository registrationRepository;
     private final EventCacheService cacheService;
-
 
     public EventService(IEventRepository eventRepository,
                         EventCacheService cacheService,
                         ILocationRepository locationRepository,
-                        IUserRepository userRepository) {
+                        IUserRepository userRepository, RegistrationRepository registrationRepository) {
         this.eventRepository = eventRepository;
         this.cacheService = cacheService;
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
+        this.registrationRepository = registrationRepository;
     }
 
     public ApiResponse<DonationEvent> createEvent(String hostId, CreateEventDTO dto) {
@@ -95,28 +99,72 @@ public class EventService implements IEventService {
     }
 
     @Override
-    public ApiResponse<DonationEvent> getEventDetails(String eventId) {
+    public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
-            // Check cache first
-            Optional<DonationEvent> cachedEvent = cacheService.getCachedEventDetails(eventId);
-            if (cachedEvent.isPresent()) {
-                return ApiResponse.success(cachedEvent.get());
+            // Get event details
+            DonationEvent event = cacheService.getCachedEventDetails(eventId)
+                    .orElseGet(() -> {
+                        try {
+                            return eventRepository.findById(eventId)
+                                    .orElseThrow(() -> new AppException(
+                                            ErrorCode.INVALID_INPUT,
+                                            "Event not found"
+                                    ));
+                        } catch (AppException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+
+            // Cache event if retrieved from repository
+            if (!cacheService.getCachedEventDetails(eventId).isPresent()) {
+                cacheService.cacheEventDetails(eventId, event);
             }
 
-            // If not in cache, get from repository
-            Optional<DonationEvent> event = eventRepository.findById(eventId);
-            if (event.isPresent()) {
-                // Cache the result
-                cacheService.cacheEventDetails(eventId, event.get());
-                return ApiResponse.success(event.get());
-            }
+            // Get host details
+            User host = userRepository.findById(event.getHostId())
+                    .orElseThrow(() -> new AppException(
+                            ErrorCode.DATABASE_ERROR,
+                            "Host not found"
+                    ));
 
-            return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event not found");
+            // Get registration counts
+            int donorCount = registrationRepository
+                    .getRegistrationCount(eventId, RegistrationType.DONOR);
+            int volunteerCount = registrationRepository
+                    .getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
+
+            EventDetailDTO dto = new EventDetailDTO(
+                    event.getEventId(),
+                    event.getTitle(),
+                    event.getDescription(),
+                    event.getStartTime(),
+                    event.getEndTime(),
+                    event.getStatus(),
+                    host.getUserId(),
+                    host.getFullName(),
+                    host.getPhoneNumber(),
+                    event.getLocation().getAddress(),
+                    event.getLocation().getLatitude(),
+                    event.getLocation().getLongitude(),
+                    event.getLocation().getDescription(),
+                    event.getRequiredBloodTypes(),
+                    event.getBloodGoal(),
+                    event.getCurrentBloodCollected(),
+                    donorCount,
+                    volunteerCount
+            );
+
+            return ApiResponse.success(dto);
+
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.error(
+                    ErrorCode.INTERNAL_SERVER_ERROR,
+                    "Unexpected error: " + e.getMessage()
+            );
         }
     }
-
     private EventSummaryDTO convertToSummary(DonationEvent event) {
         EventSummaryDTO summary = new EventSummaryDTO();
         // Map fields from event to summary
