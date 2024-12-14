@@ -120,7 +120,7 @@ public class UserRepository implements IUserRepository {
     }
 
     @Override
-    public boolean existsByEmail(String email, UserType userType) throws AppException {
+    public boolean existsByEmail(String email) throws AppException {
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
@@ -128,8 +128,8 @@ public class UserRepository implements IUserRepository {
             cursor = db.query(
                     TABLE_USERS,
                     new String[]{"id"},
-                    "email = ? AND user_type = ?",
-                    new String[]{email, userType.name()},
+                    "email = ?",
+                    new String[]{email},
                     null,
                     null,
                     null
@@ -144,7 +144,6 @@ public class UserRepository implements IUserRepository {
             }
         }
     }
-
     @Override
     public boolean updateUser(User user) throws AppException {
         SQLiteDatabase db = null;

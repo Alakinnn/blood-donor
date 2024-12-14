@@ -75,7 +75,7 @@ public class AuthenticationTests {
         DonorRegisterRequest request = createValidDonorRequest();
 
         // Mock dependencies
-        when(userRepository.existsByEmail(request.getEmail(), UserType.DONOR)).thenReturn(false);
+        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
         when(authService.hashPassword(request.getPassword())).thenReturn("hashedPassword");
 
         User mockUser = new User(
@@ -107,7 +107,7 @@ public class AuthenticationTests {
         ManagerRegisterRequest request = createValidManagerRequest();
 
         // Mock dependencies
-        when(userRepository.existsByEmail(request.getEmail(), UserType.SITE_MANAGER)).thenReturn(false);
+        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
         when(authService.hashPassword(request.getPassword())).thenReturn("hashedPassword");
 
         User mockUser = new User(
@@ -136,7 +136,7 @@ public class AuthenticationTests {
     @Test(expected = AppException.class)
     public void testExistingEmailForDonor() throws AppException {
         DonorRegisterRequest request = createValidDonorRequest();
-        when(userRepository.existsByEmail(eq(request.getEmail()), eq(UserType.DONOR)))
+        when(userRepository.existsByEmail(eq(request.getEmail())))
                 .thenReturn(true);
 
         userService.registerDonor(request).throwErrorIfPresent();
@@ -145,7 +145,7 @@ public class AuthenticationTests {
     @Test(expected = AppException.class)
     public void testExistingEmailForManager() throws AppException {
         ManagerRegisterRequest request = createValidManagerRequest();
-        when(userRepository.existsByEmail(eq(request.getEmail()), eq(UserType.SITE_MANAGER)))
+        when(userRepository.existsByEmail(eq(request.getEmail())))
                 .thenReturn(true);
 
         userService.registerManager(request).throwErrorIfPresent();

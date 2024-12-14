@@ -40,7 +40,7 @@ public class UserService implements IUserService {
             request.validate();
 
             // Check if email exists
-            if (userRepository.existsByEmail(request.getEmail(), UserType.DONOR)) {
+            if (userRepository.existsByEmail(request.getEmail())) {
                 throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
 
@@ -79,7 +79,7 @@ public class UserService implements IUserService {
         try {
             request.validate();
 
-            if (userRepository.existsByEmail(request.getEmail(), UserType.SITE_MANAGER)) {
+            if (userRepository.existsByEmail(request.getEmail())) {
                 throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
 
