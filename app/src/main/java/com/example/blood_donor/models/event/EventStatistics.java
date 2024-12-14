@@ -20,6 +20,45 @@ public class EventStatistics {
     }
 
     // Getters and setters
-    // ... (all standard getters and setters)
+
+    public String getEventId() {
+        return eventId;
+    }
+
+    public void setEventId(String eventId) {
+        this.eventId = eventId;
+    }
+
+    public int getTotalDonors() {
+        return totalDonors;
+    }
+
+    public void setTotalDonors(int totalDonors) {
+        this.totalDonors = totalDonors;
+    }
+
+    public int getTotalVolunteers() {
+        return totalVolunteers;
+    }
+
+    public void setTotalVolunteers(int totalVolunteers) {
+        this.totalVolunteers = totalVolunteers;
+    }
+
+    public Map<String, Double> getBloodTypeCollected() {
+        return bloodTypeCollected;
+    }
+
+    public void setBloodTypeCollected(Map<String, Double> bloodTypeCollected) {
+        this.bloodTypeCollected = bloodTypeCollected;
+    }
+
+    public long getGeneratedAt() {
+        return generatedAt;
+    }
+
+    public void setGeneratedAt(long generatedAt) {
+        this.generatedAt = generatedAt;
+    }
 }
 

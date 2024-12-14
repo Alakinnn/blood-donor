@@ -50,4 +50,7 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     testImplementation(libs.mockito.core)
     testImplementation("org.robolectric:robolectric:4.10.3")
+    implementation ("com.itextpdf:itextpdf:5.5.13.3")
+    implementation ("org.apache.poi:poi:5.2.3")
+    implementation ("org.apache.poi:poi-ooxml:5.2.3")
 }

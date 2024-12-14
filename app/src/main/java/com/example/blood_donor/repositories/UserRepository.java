@@ -10,7 +10,10 @@ import com.example.blood_donor.errors.AppException;
 import com.example.blood_donor.errors.ErrorCode;
 import com.example.blood_donor.models.user.User;
 import com.example.blood_donor.models.user.UserType;
+import com.example.blood_donor.utils.QueryBuilder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class UserRepository implements IUserRepository {
@@ -214,5 +217,31 @@ public class UserRepository implements IUserRepository {
                 cursor.getString(cursor.getColumnIndexOrThrow("blood_type")),
                 cursor.getString(cursor.getColumnIndexOrThrow("gender"))
         );
+    }
+
+    @Override
+    public List<User> findUsersByTimeRange(long startTime, long endTime) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getReadableDatabase();
+
+            QueryBuilder queryBuilder = new QueryBuilder()
+                    .select("*")
+                    .from("users")
+                    .where("created_at >= ? AND created_at <= ?",
+                            String.valueOf(startTime),
+                            String.valueOf(endTime));
+
+            cursor = queryBuilder.execute(db);
+
+            List<User> users = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                users.add(cursorToUser(cursor));
+            }
+            return users;
+        } finally {
+            if (cursor != null) cursor.close();
+        }
     }
 }

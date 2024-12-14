@@ -12,4 +12,6 @@ public interface IEventRepository {
     Optional<DonationEvent> findById(String eventId) throws AppException;
     int countEvents(EventQueryDTO query) throws AppException;
     Optional<DonationEvent> save(DonationEvent event) throws AppException;
+    List<DonationEvent> findEventsBetween(long startTime, long endTime) throws AppException;
+    List<DonationEvent> findEventsByHostId(String hostId) throws AppException;
 }

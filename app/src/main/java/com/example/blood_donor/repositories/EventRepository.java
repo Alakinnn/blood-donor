@@ -272,4 +272,55 @@ public class EventRepository implements IEventRepository {
             }
         }
     }
+    @Override
+    public List<DonationEvent> findEventsBetween(long startTime, long endTime) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getReadableDatabase();
+
+            QueryBuilder queryBuilder = new QueryBuilder()
+                    .select("e.*, l.*")
+                    .from("events e")
+                    .join("locations l ON e.location_id = l.id")
+                    .where("e.start_time >= ? AND e.end_time <= ?",
+                            String.valueOf(startTime),
+                            String.valueOf(endTime));
+
+            cursor = queryBuilder.execute(db);
+
+            List<DonationEvent> events = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                events.add(cursorToEvent(cursor));
+            }
+            return events;
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
+    @Override
+    public List<DonationEvent> findEventsByHostId(String hostId) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getReadableDatabase();
+
+            QueryBuilder queryBuilder = new QueryBuilder()
+                    .select("e.*, l.*")
+                    .from("events e")
+                    .join("locations l ON e.location_id = l.id")
+                    .where("e.host_id = ?", hostId);
+
+            cursor = queryBuilder.execute(db);
+
+            List<DonationEvent> events = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                events.add(cursorToEvent(cursor));
+            }
+            return events;
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
 }

@@ -2,7 +2,9 @@ package com.example.blood_donor.models.event;
 
 import com.example.blood_donor.models.location.Location;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DonationEvent {
     private String eventId;
@@ -22,6 +24,7 @@ public class DonationEvent {
     private int volunteerCount;
     private String hostName;
     private String hostPhoneNumber;
+    private Map<String, Double> bloodTypeCollected;
 
     public DonationEvent(String eventId, String title, String description,
                          long startTime, long endTime, Location location,
@@ -44,7 +47,22 @@ public class DonationEvent {
         this.hostName = null;
         this.hostPhoneNumber = null;
     }
+    public void setBloodTypeCollected(Map<String, Double> bloodTypeCollected) {
+        this.bloodTypeCollected = new HashMap<>(bloodTypeCollected);
+    }
 
+    public Map<String, Double> getBloodTypeCollected() {
+        return new HashMap<>(bloodTypeCollected);
+    }
+    public void addBloodCollection(String bloodType, double amount) {
+        bloodTypeCollected.merge(bloodType, amount, Double::sum);
+        this.currentBloodCollected += amount;
+    }
+
+    public void clearBloodCollection() {
+        bloodTypeCollected.clear();
+        this.currentBloodCollected = 0.0;
+    }
     public int getDonorCount() { return donorCount; }
     public void setDonorCount(int donorCount) { this.donorCount = donorCount; }
     public int getVolunteerCount() { return volunteerCount; }
