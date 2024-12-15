@@ -3,6 +3,7 @@ package com.example.blood_donor.dto.events;
 import com.example.blood_donor.models.event.EventStatus;
 
 import java.util.List;
+import java.util.Map;
 
 public class EventDetailDTO {
     private String eventId;
@@ -31,8 +32,10 @@ public class EventDetailDTO {
     // Registration counts
     private int donorCount;
     private int volunteerCount;
+    private List<BloodTypeProgress> bloodProgress;
+    private Map<String, Integer> donorsByBloodType;
 
-    public EventDetailDTO(String eventId, String title, String description, long startTime, long endTime, EventStatus status, String hostId, String hostName, String hostPhoneNumber, String address, double latitude, double longitude, String locationDescription, List<String> requiredBloodTypes, double bloodGoal, double currentBloodCollected, int donorCount, int volunteerCount) {
+    public EventDetailDTO(String eventId, String title, String description, long startTime, long endTime, EventStatus status, String hostId, String hostName, String hostPhoneNumber, String address, double latitude, double longitude, String locationDescription, List<String> requiredBloodTypes, double bloodGoal, double currentBloodCollected, int donorCount, int volunteerCount, List<BloodTypeProgress> bloodProgress) {
         this.eventId = eventId;
         this.title = title;
         this.description = description;

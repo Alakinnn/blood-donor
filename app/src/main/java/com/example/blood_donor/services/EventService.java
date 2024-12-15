@@ -1,12 +1,16 @@
 package com.example.blood_donor.services;
 
+import android.os.Build;
+
+import com.example.blood_donor.dto.events.BloodTypeProgress;
 import com.example.blood_donor.dto.events.CreateEventDTO;
 import com.example.blood_donor.dto.events.EventDetailDTO;
 import com.example.blood_donor.dto.locations.EventQueryDTO;
-import com.example.blood_donor.dto.locations.EventSummaryDTO;
+import com.example.blood_donor.dto.events.EventSummaryDTO;
 import com.example.blood_donor.errors.AppException;
 import com.example.blood_donor.errors.ErrorCode;
 import com.example.blood_donor.models.donation.RegistrationType;
+import com.example.blood_donor.models.event.BloodTypeRequirement;
 import com.example.blood_donor.models.event.DonationEvent;
 import com.example.blood_donor.models.location.Location;
 import com.example.blood_donor.models.response.ApiResponse;
@@ -14,12 +18,14 @@ import com.example.blood_donor.models.user.User;
 import com.example.blood_donor.models.user.UserType;
 import com.example.blood_donor.repositories.IEventRepository;
 import com.example.blood_donor.repositories.ILocationRepository;
-import com.example.blood_donor.repositories.IRegistrationRepository;
 import com.example.blood_donor.repositories.IUserRepository;
 import com.example.blood_donor.repositories.RegistrationRepository;
 import com.example.blood_donor.services.interfaces.IEventService;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,16 +49,24 @@ public class EventService implements IEventService {
 
     public ApiResponse<DonationEvent> createEvent(String hostId, CreateEventDTO dto) {
         try {
-            // Validate host exists and is a site manager
-            User host = userRepository.findById(hostId)
-                    .orElseThrow(() -> new AppException(ErrorCode.INVALID_INPUT, "Host not found"));
-
-            if (host.getUserType() != UserType.SITE_MANAGER) {
-                throw new AppException(ErrorCode.INVALID_INPUT,
-                        "Only site managers can create events");
+            // Validate blood type targets
+            if (dto.getBloodTypeTargets() == null || dto.getBloodTypeTargets().isEmpty()) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "Blood type targets are required");
             }
 
-            // Create location first
+            // Validate each blood type
+            for (Map.Entry<String, Double> entry : dto.getBloodTypeTargets().entrySet()) {
+                if (!isValidBloodType(entry.getKey())) {
+                    throw new AppException(ErrorCode.INVALID_INPUT,
+                            "Invalid blood type: " + entry.getKey());
+                }
+                if (entry.getValue() <= 0) {
+                    throw new AppException(ErrorCode.INVALID_INPUT,
+                            "Target amount must be greater than 0 for " + entry.getKey());
+                }
+            }
+
+            // Create location and event
             Location location = new Location.Builder()
                     .locationId(UUID.randomUUID().toString())
                     .address(dto.getAddress())
@@ -62,7 +76,6 @@ public class EventService implements IEventService {
 
             locationRepository.save(location);
 
-            // Create event
             DonationEvent event = new DonationEvent(
                     UUID.randomUUID().toString(),
                     dto.getTitle(),
@@ -70,19 +83,20 @@ public class EventService implements IEventService {
                     dto.getStartTime(),
                     dto.getEndTime(),
                     location,
-                    dto.getRequiredBloodTypes(),
-                    dto.getBloodGoal(),
+                    dto.getBloodTypeTargets(),  // Pass blood type targets
                     hostId
             );
 
             eventRepository.save(event);
             return ApiResponse.success(event);
-
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
-        } catch (Exception e) {
-            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private boolean isValidBloodType(String bloodType) {
+        return Arrays.asList("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-")
+                .contains(bloodType);
     }
 
     @Override
@@ -90,8 +104,31 @@ public class EventService implements IEventService {
         try {
             List<DonationEvent> events = eventRepository.findEvents(query);
             List<EventSummaryDTO> summaries = events.stream()
-                    .map(this::convertToSummary)
+                    .map(event -> {
+                        EventSummaryDTO summary = new EventSummaryDTO();
+                        summary.setEventId(event.getEventId());
+                        summary.setTitle(event.getTitle());
+                        summary.setLatitude(event.getLocation().getLatitude());
+                        summary.setLongitude(event.getLocation().getLongitude());
+                        summary.setStartTime(event.getStartTime());
+                        summary.setEndTime(event.getEndTime());
+
+                        // Convert blood requirements to progress list
+                        List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
+                                .map(req -> new BloodTypeProgress(
+                                        req.getTargetAmount(),
+                                        req.getCollectedAmount()
+                                ))
+                                .collect(Collectors.toList());
+                        summary.setBloodProgress(bloodProgress);
+
+                        if (event.getDistance() != null) {
+                            summary.setDistance(event.getDistance());
+                        }
+                        return summary;
+                    })
                     .collect(Collectors.toList());
+
             return ApiResponse.success(summaries);
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
@@ -101,7 +138,6 @@ public class EventService implements IEventService {
     @Override
     public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
-            // Get event details
             DonationEvent event = cacheService.getCachedEventDetails(eventId)
                     .orElseGet(() -> {
                         try {
@@ -115,54 +151,50 @@ public class EventService implements IEventService {
                         }
                     });
 
-            // Cache event if retrieved from repository
-            if (!cacheService.getCachedEventDetails(eventId).isPresent()) {
-                cacheService.cacheEventDetails(eventId, event);
-            }
-
-            // Get host details
             User host = userRepository.findById(event.getHostId())
                     .orElseThrow(() -> new AppException(
                             ErrorCode.DATABASE_ERROR,
                             "Host not found"
                     ));
 
-            // Get registration counts
-            int donorCount = registrationRepository
-                    .getRegistrationCount(eventId, RegistrationType.DONOR);
-            int volunteerCount = registrationRepository
-                    .getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
+            int donorCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.DONOR);
+            int volunteerCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
 
-            EventDetailDTO dto = new EventDetailDTO(
-                    event.getEventId(),
-                    event.getTitle(),
-                    event.getDescription(),
-                    event.getStartTime(),
-                    event.getEndTime(),
-                    event.getStatus(),
-                    host.getUserId(),
-                    host.getFullName(),
-                    host.getPhoneNumber(),
-                    event.getLocation().getAddress(),
-                    event.getLocation().getLatitude(),
-                    event.getLocation().getLongitude(),
-                    event.getLocation().getDescription(),
-                    event.getRequiredBloodTypes(),
-                    event.getBloodGoal(),
-                    event.getCurrentBloodCollected(),
-                    donorCount,
-                    volunteerCount
-            );
+            List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
+                    .map(req -> new BloodTypeProgress(
+                            req.getTargetAmount(),
+                            req.getCollectedAmount()
+                    ))
+                    .collect(Collectors.toList());
+
+            EventDetailDTO dto = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                dto = new EventDetailDTO(
+                        event.getEventId(),
+                        event.getTitle(),
+                        event.getDescription(),
+                        event.getStartTime(),
+                        event.getEndTime(),
+                        event.getStatus(),
+                        host.getUserId(),
+                        host.getFullName(),
+                        host.getPhoneNumber(),
+                        event.getLocation().getAddress(),
+                        event.getLocation().getLatitude(),
+                        event.getLocation().getLongitude(),
+                        event.getLocation().getDescription(),
+                        event.getBloodRequirements().keySet().stream().toList(),
+                        event.getTotalTargetAmount(),
+                        event.getTotalCollectedAmount(),
+                        donorCount,
+                        volunteerCount,
+                        bloodProgress
+                );
+            }
 
             return ApiResponse.success(dto);
-
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
-        } catch (Exception e) {
-            return ApiResponse.error(
-                    ErrorCode.INTERNAL_SERVER_ERROR,
-                    "Unexpected error: " + e.getMessage()
-            );
         }
     }
     private EventSummaryDTO convertToSummary(DonationEvent event) {
@@ -172,10 +204,8 @@ public class EventService implements IEventService {
         summary.setTitle(event.getTitle());
         summary.setLatitude(event.getLocation().getLatitude());
         summary.setLongitude(event.getLocation().getLongitude());
-        summary.setRequiredBloodTypes(event.getRequiredBloodTypes());
         summary.setStartTime(event.getStartTime());
         summary.setEndTime(event.getEndTime());
-        summary.setBloodGoal(event.getBloodGoal());
         summary.setCurrentBloodCollected(event.getCurrentBloodCollected());
         if (event.getDistance() != null) {
             summary.setDistance(event.getDistance());

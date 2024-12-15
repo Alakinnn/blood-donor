@@ -12,12 +12,13 @@ import com.example.blood_donor.repositories.IEventRepository;
 import com.example.blood_donor.repositories.IUserRepository;
 import com.example.blood_donor.repositories.RegistrationRepository;
 
-public class RegistrationService {
+public class DonationRegistrationService {
+    private static final double STANDARD_DONATION_AMOUNT = 0.45;
     private final RegistrationRepository registrationRepository;
     private final IUserRepository userRepository;
     private final IEventRepository eventRepository;
 
-    public RegistrationService(
+    public DonationRegistrationService(
             RegistrationRepository registrationRepository,
             IUserRepository userRepository,
             IEventRepository eventRepository
@@ -51,7 +52,7 @@ public class RegistrationService {
         }
     }
 
-    public ApiResponse<Boolean> register(String userId, String eventId) {
+    public ApiResponse<Boolean> registerDonor(String userId, String eventId, String bloodType) {
         try {
             // Validate input
             if (userId == null || eventId == null) {
@@ -74,24 +75,22 @@ public class RegistrationService {
             // Validate event status
             validateEventStatus(event);
 
-            // Determine registration type based on user type
-            RegistrationType type = (user.getUserType() == UserType.SITE_MANAGER)
-                    ? RegistrationType.VOLUNTEER
-                    : RegistrationType.DONOR;
+            // Validate blood type requirement
+            if (!event.canDonateBloodType(bloodType)) {
+                return ApiResponse.error(ErrorCode.INVALID_INPUT,
+                        "Blood type " + bloodType + " is not required for this event");
+            }
 
-            // Register the user
-            registrationRepository.register(userId, eventId, type);
+            // Register the donor
+            registrationRepository.register(userId, eventId, RegistrationType.DONOR);
 
-            // Return success with false to indicate new registration
-            return ApiResponse.success(false);
+            // Record the donation amount
+            event.recordDonation(bloodType, STANDARD_DONATION_AMOUNT);
+            eventRepository.save(event);
 
+            return ApiResponse.success(true);
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
-        } catch (Exception e) {
-            return ApiResponse.error(
-                    ErrorCode.INTERNAL_SERVER_ERROR,
-                    "An unexpected error occurred: " + e.getMessage()
-            );
         }
     }
 }

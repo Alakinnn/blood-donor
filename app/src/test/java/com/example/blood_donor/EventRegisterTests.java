@@ -20,7 +20,7 @@ import com.example.blood_donor.models.user.UserType;
 import com.example.blood_donor.repositories.IEventRepository;
 import com.example.blood_donor.repositories.IUserRepository;
 import com.example.blood_donor.repositories.RegistrationRepository;
-import com.example.blood_donor.services.RegistrationService;
+import com.example.blood_donor.services.DonationRegistrationService;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -44,7 +44,7 @@ public class EventRegisterTests {
     private IEventRepository eventRepository;
 
     private RegistrationRepository registrationRepository;
-    private RegistrationService registrationService;
+    private DonationRegistrationService donationRegistrationService;
     private DatabaseHelper dbHelper;
     private Context context;
 
@@ -62,7 +62,7 @@ public class EventRegisterTests {
         dbHelper = new DatabaseHelper(context);
         registrationRepository = new RegistrationRepository(dbHelper);
 
-        registrationService = new RegistrationService(
+        donationRegistrationService = new DonationRegistrationService(
                 registrationRepository,
                 userRepository,
                 eventRepository
@@ -150,7 +150,7 @@ public class EventRegisterTests {
                 .thenReturn(Optional.of(activeEvent));
 
         // Act
-        ApiResponse<Boolean> response = registrationService
+        ApiResponse<Boolean> response = donationRegistrationService
                 .register(testDonor.getUserId(), activeEvent.getEventId());
 
         // Assert
@@ -172,7 +172,7 @@ public class EventRegisterTests {
                 .thenReturn(Optional.of(activeEvent));
 
         // Act
-        ApiResponse<Boolean> response = registrationService
+        ApiResponse<Boolean> response = donationRegistrationService
                 .register(testManager.getUserId(), activeEvent.getEventId());
 
         // Assert
@@ -194,7 +194,7 @@ public class EventRegisterTests {
                 .thenReturn(Optional.of(expiredEvent));
 
         // Act
-        ApiResponse<Boolean> response = registrationService
+        ApiResponse<Boolean> response = donationRegistrationService
                 .register(testDonor.getUserId(), expiredEvent.getEventId());
 
         // Assert
@@ -214,11 +214,11 @@ public class EventRegisterTests {
                 .thenReturn(Optional.of(activeEvent));
 
         // First registration
-        ApiResponse<Boolean> firstResponse = registrationService
+        ApiResponse<Boolean> firstResponse = donationRegistrationService
                 .register(testDonor.getUserId(), activeEvent.getEventId());
 
         // Act - Try to register again
-        ApiResponse<Boolean> secondResponse = registrationService
+        ApiResponse<Boolean> secondResponse = donationRegistrationService
                 .register(testDonor.getUserId(), activeEvent.getEventId());
 
         // Assert
@@ -241,8 +241,8 @@ public class EventRegisterTests {
                 .thenReturn(Optional.of(activeEvent));
 
         // Act - Register both a donor and a volunteer
-        registrationService.register(testDonor.getUserId(), activeEvent.getEventId());
-        registrationService.register(testManager.getUserId(), activeEvent.getEventId());
+        donationRegistrationService.register(testDonor.getUserId(), activeEvent.getEventId());
+        donationRegistrationService.register(testManager.getUserId(), activeEvent.getEventId());
 
         // Assert
         assertEquals("Should have 1 donor registration", 1,
@@ -264,7 +264,7 @@ public class EventRegisterTests {
                 .thenReturn(Optional.empty());
 
         // Act
-        ApiResponse<Boolean> response = registrationService
+        ApiResponse<Boolean> response = donationRegistrationService
                 .register("nonexistent", activeEvent.getEventId());
 
         // Assert
@@ -284,7 +284,7 @@ public class EventRegisterTests {
                 .thenReturn(Optional.empty());
 
         // Act
-        ApiResponse<Boolean> response = registrationService
+        ApiResponse<Boolean> response = donationRegistrationService
                 .register(testDonor.getUserId(), "nonexistent");
 
         // Assert
@@ -307,7 +307,7 @@ public class EventRegisterTests {
                 .thenReturn(Optional.of(completedEvent));
 
         // Act
-        ApiResponse<Boolean> response = registrationService
+        ApiResponse<Boolean> response = donationRegistrationService
                 .register(testDonor.getUserId(), completedEvent.getEventId());
 
         // Assert

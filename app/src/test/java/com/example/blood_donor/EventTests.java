@@ -4,13 +4,12 @@ import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.example.blood_donor.database.DatabaseHelper;
 import com.example.blood_donor.dto.events.EventDetailDTO;
 import com.example.blood_donor.dto.locations.EventQueryDTO;
-import com.example.blood_donor.dto.locations.EventSummaryDTO;
+import com.example.blood_donor.dto.events.EventSummaryDTO;
 import com.example.blood_donor.errors.AppException;
 import com.example.blood_donor.models.donation.RegistrationType;
 import com.example.blood_donor.models.event.DonationEvent;

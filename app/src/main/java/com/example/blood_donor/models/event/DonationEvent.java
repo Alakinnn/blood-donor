@@ -13,8 +13,6 @@ public class DonationEvent {
     private long startTime;
     private long endTime;
     private Location location;
-    private List<String> requiredBloodTypes;
-    private double bloodGoal;
     private double currentBloodCollected;
     private String hostId;
     private EventStatus status;
@@ -24,20 +22,17 @@ public class DonationEvent {
     private int volunteerCount;
     private String hostName;
     private String hostPhoneNumber;
-    private Map<String, Double> bloodTypeCollected;
+    private Map<String, BloodTypeRequirement> bloodRequirements;
 
     public DonationEvent(String eventId, String title, String description,
                          long startTime, long endTime, Location location,
-                         List<String> requiredBloodTypes, double bloodGoal,
-                         String hostId) {
+                         Map<String, Double> bloodTypeTargets, String hostId) {
         this.eventId = eventId;
         this.title = title;
         this.description = description;
         this.startTime = startTime;
         this.endTime = endTime;
         this.location = location;
-        this.requiredBloodTypes = requiredBloodTypes;
-        this.bloodGoal = bloodGoal;
         this.currentBloodCollected = 0.0;
         this.hostId = hostId;
         this.status = EventStatus.UPCOMING;
@@ -46,23 +41,38 @@ public class DonationEvent {
         this.volunteerCount = 0;
         this.hostName = null;
         this.hostPhoneNumber = null;
+        this.bloodRequirements = new HashMap<>();
+        bloodTypeTargets.forEach((bloodType, target) ->
+                bloodRequirements.put(bloodType, new BloodTypeRequirement(bloodType, target))
+        );
     }
-    public void setBloodTypeCollected(Map<String, Double> bloodTypeCollected) {
-        this.bloodTypeCollected = new HashMap<>(bloodTypeCollected);
-    }
-
-    public Map<String, Double> getBloodTypeCollected() {
-        return new HashMap<>(bloodTypeCollected);
-    }
-    public void addBloodCollection(String bloodType, double amount) {
-        bloodTypeCollected.merge(bloodType, amount, Double::sum);
-        this.currentBloodCollected += amount;
+    public boolean canDonateBloodType(String bloodType) {
+        return bloodRequirements.containsKey(bloodType);
     }
 
-    public void clearBloodCollection() {
-        bloodTypeCollected.clear();
-        this.currentBloodCollected = 0.0;
+    public void recordDonation(String bloodType, double amount) {
+        BloodTypeRequirement requirement = bloodRequirements.get(bloodType);
+        if (requirement != null) {
+            requirement.addDonation(amount);
+        }
     }
+
+    public double getTotalTargetAmount() {
+        return bloodRequirements.values().stream()
+                .mapToDouble(BloodTypeRequirement::getTargetAmount)
+                .sum();
+    }
+
+    public double getTotalCollectedAmount() {
+        return bloodRequirements.values().stream()
+                .mapToDouble(BloodTypeRequirement::getCollectedAmount)
+                .sum();
+    }
+
+    public Map<String, BloodTypeRequirement> getBloodRequirements() {
+        return new HashMap<>(bloodRequirements);
+    }
+
     public int getDonorCount() { return donorCount; }
     public void setDonorCount(int donorCount) { this.donorCount = donorCount; }
     public int getVolunteerCount() { return volunteerCount; }
@@ -120,21 +130,6 @@ public class DonationEvent {
         this.location = location;
     }
 
-    public List<String> getRequiredBloodTypes() {
-        return requiredBloodTypes;
-    }
-
-    public void setRequiredBloodTypes(List<String> requiredBloodTypes) {
-        this.requiredBloodTypes = requiredBloodTypes;
-    }
-
-    public double getBloodGoal() {
-        return bloodGoal;
-    }
-
-    public void setBloodGoal(double bloodGoal) {
-        this.bloodGoal = bloodGoal;
-    }
 
     public double getCurrentBloodCollected() {
         return currentBloodCollected;

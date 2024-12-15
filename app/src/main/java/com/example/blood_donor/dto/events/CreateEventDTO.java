@@ -1,6 +1,7 @@
 package com.example.blood_donor.dto.events;
 
 import java.util.List;
+import java.util.Map;
 
 public class CreateEventDTO {
     private String title;
@@ -8,16 +9,16 @@ public class CreateEventDTO {
     private long startTime;
     private long endTime;
     private double bloodGoal;
-    private List<String> requiredBloodTypes;
     // Location details
     private String address;
     private double latitude;
     private double longitude;
     private String locationDescription;
+    private Map<String, Double> bloodTypeTargets;
 
     // Constructor, getters, setters
     public CreateEventDTO(String title, String description, long startTime,
-                          long endTime, double bloodGoal, List<String> requiredBloodTypes,
+                          long endTime, double bloodGoal,
                           String address, double latitude, double longitude,
                           String locationDescription) {
         this.title = title;
@@ -25,7 +26,6 @@ public class CreateEventDTO {
         this.startTime = startTime;
         this.endTime = endTime;
         this.bloodGoal = bloodGoal;
-        this.requiredBloodTypes = requiredBloodTypes;
         this.address = address;
         this.latitude = latitude;
         this.longitude = longitude;
@@ -73,13 +73,12 @@ public class CreateEventDTO {
     public void setBloodGoal(double bloodGoal) {
         this.bloodGoal = bloodGoal;
     }
-
-    public List<String> getRequiredBloodTypes() {
-        return requiredBloodTypes;
+    public Map<String, Double> getBloodTypeTargets() {
+        return bloodTypeTargets;
     }
 
-    public void setRequiredBloodTypes(List<String> requiredBloodTypes) {
-        this.requiredBloodTypes = requiredBloodTypes;
+    public void setBloodTypeTargets(Map<String, Double> bloodTypeTargets) {
+        this.bloodTypeTargets = bloodTypeTargets;
     }
 
     public String getAddress() {

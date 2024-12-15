@@ -1,4 +1,4 @@
-package com.example.blood_donor.dto.locations;
+package com.example.blood_donor.dto.events;
 
 import java.util.List;
 
@@ -12,9 +12,9 @@ public class EventSummaryDTO {
     private long endTime;
     private double bloodGoal;
     private double currentBloodCollected;
-    private double distance;  // Optional, set only when location provided in query
-
-    // Constructor, getters, setters...
+    private double distance;
+    private List<BloodTypeProgress> bloodProgress;
+    private double totalProgress;
 
     public String getEventId() {
         return eventId;
@@ -94,5 +94,21 @@ public class EventSummaryDTO {
 
     public void setDistance(double distance) {
         this.distance = distance;
+    }
+
+    public List<BloodTypeProgress> getBloodProgress() {
+        return bloodProgress;
+    }
+
+    public void setBloodProgress(List<BloodTypeProgress> bloodProgress) {
+        this.bloodProgress = bloodProgress;
+    }
+
+    public double getTotalProgress() {
+        return totalProgress;
+    }
+
+    public void setTotalProgress(double totalProgress) {
+        this.totalProgress = totalProgress;
     }
 }
