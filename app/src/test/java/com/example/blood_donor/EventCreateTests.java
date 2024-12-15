@@ -9,13 +9,13 @@ import android.database.sqlite.SQLiteDatabase;
 import android.location.Address;
 import android.location.Geocoder;
 
-import com.example.blood_donor.database.DatabaseHelper;
-import com.example.blood_donor.dto.events.CreateEventDTO;
-import com.example.blood_donor.errors.AppException;
-import com.example.blood_donor.models.location.Location;
-import com.example.blood_donor.models.location.LatLng;
-import com.example.blood_donor.services.LocationService;
-import com.example.blood_donor.validators.LocationValidator;
+import com.example.blood_donor.server.database.DatabaseHelper;
+import com.example.blood_donor.server.dto.events.CreateEventDTO;
+import com.example.blood_donor.server.errors.AppException;
+import com.example.blood_donor.server.models.location.Location;
+import com.example.blood_donor.server.models.location.LatLng;
+import com.example.blood_donor.server.services.LocationService;
+import com.example.blood_donor.server.validators.LocationValidator;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -28,7 +28,6 @@ import org.robolectric.annotation.Config;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 @RunWith(RobolectricTestRunner.class)

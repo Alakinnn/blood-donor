@@ -5,17 +5,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.example.blood_donor.dto.auth.AuthResponse;
-import com.example.blood_donor.dto.auth.DonorRegisterRequest;
-import com.example.blood_donor.dto.auth.ManagerRegisterRequest;
-import com.example.blood_donor.errors.AppException;
-import com.example.blood_donor.errors.ErrorCode;
-import com.example.blood_donor.models.user.User;
-import com.example.blood_donor.models.user.UserType;
-import com.example.blood_donor.repositories.IUserRepository;
-import com.example.blood_donor.services.AuthService;
-import com.example.blood_donor.services.UserService;
-import com.example.blood_donor.repositories.ISessionRepository;
+import com.example.blood_donor.server.dto.auth.AuthResponse;
+import com.example.blood_donor.server.dto.auth.DonorRegisterRequest;
+import com.example.blood_donor.server.dto.auth.ManagerRegisterRequest;
+import com.example.blood_donor.server.errors.AppException;
+import com.example.blood_donor.server.models.user.User;
+import com.example.blood_donor.server.models.user.UserType;
+import com.example.blood_donor.server.repositories.IUserRepository;
+import com.example.blood_donor.server.services.AuthService;
+import com.example.blood_donor.server.services.UserService;
+import com.example.blood_donor.server.repositories.ISessionRepository;
 
 import org.junit.Before;
 import org.junit.Test;

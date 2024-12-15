@@ -10,10 +10,10 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
 
-import com.example.blood_donor.notifications.EventNotificationHandler;
-import com.example.blood_donor.notifications.EventNotificationObserver;
-import com.example.blood_donor.notifications.NotificationConstants;
-import com.example.blood_donor.notifications.NotificationTemplate;
+import com.example.blood_donor.server.notifications.EventNotificationHandler;
+import com.example.blood_donor.server.notifications.EventNotificationObserver;
+import com.example.blood_donor.server.notifications.NotificationConstants;
+import com.example.blood_donor.server.notifications.NotificationTemplate;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -22,7 +22,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import java.util.concurrent.TimeUnit;
 

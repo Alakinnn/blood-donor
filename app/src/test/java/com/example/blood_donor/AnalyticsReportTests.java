@@ -6,19 +6,19 @@ import static org.mockito.Mockito.*;
 
 import android.os.Build;
 
-import com.example.blood_donor.errors.AppException;
-import com.example.blood_donor.models.donation.RegistrationType;
-import com.example.blood_donor.models.event.DonationEvent;
-import com.example.blood_donor.models.exceptions.AnalyticsException;
-import com.example.blood_donor.models.location.Location;
-import com.example.blood_donor.models.modules.ReportFormat;
-import com.example.blood_donor.models.modules.ReportTimeframe;
-import com.example.blood_donor.models.user.User;
-import com.example.blood_donor.models.user.UserType;
-import com.example.blood_donor.repositories.IEventRepository;
-import com.example.blood_donor.repositories.IRegistrationRepository;
-import com.example.blood_donor.repositories.IUserRepository;
-import com.example.blood_donor.services.AnalyticsService;
+import com.example.blood_donor.server.errors.AppException;
+import com.example.blood_donor.server.models.donation.RegistrationType;
+import com.example.blood_donor.server.models.event.DonationEvent;
+import com.example.blood_donor.server.models.exceptions.AnalyticsException;
+import com.example.blood_donor.server.models.location.Location;
+import com.example.blood_donor.server.models.modules.ReportFormat;
+import com.example.blood_donor.server.models.modules.ReportTimeframe;
+import com.example.blood_donor.server.models.user.User;
+import com.example.blood_donor.server.models.user.UserType;
+import com.example.blood_donor.server.repositories.IEventRepository;
+import com.example.blood_donor.server.repositories.IRegistrationRepository;
+import com.example.blood_donor.server.repositories.IUserRepository;
+import com.example.blood_donor.server.services.AnalyticsService;
 
 import org.junit.Before;
 import org.junit.Test;
