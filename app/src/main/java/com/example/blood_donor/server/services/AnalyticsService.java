@@ -1,8 +1,7 @@
 package com.example.blood_donor.server.services;
 
-import android.annotation.SuppressLint;
-
 import com.example.blood_donor.server.models.donation.RegistrationType;
+import com.example.blood_donor.server.models.event.BloodTypeRequirement;
 import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.event.EventStatistics;
 import com.example.blood_donor.server.models.event.EventStatus;
@@ -32,18 +31,14 @@ public class AnalyticsService implements IAnalyticsService {
     private final IEventRepository eventRepository;
     private final IRegistrationRepository registrationRepository;
     private final IUserRepository userRepository;
-
     private final Map<ReportFormat, ReportGenerator> generators;
 
-    public AnalyticsService(
-            IEventRepository eventRepository,
-            IRegistrationRepository registrationRepository,
-            IUserRepository userRepository
-    ) {
+    public AnalyticsService(IEventRepository eventRepository,
+                            IRegistrationRepository registrationRepository,
+                            IUserRepository userRepository) {
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
         this.userRepository = userRepository;
-
         this.generators = new HashMap<>();
         generators.put(ReportFormat.CSV, new CSVReportGenerator());
         generators.put(ReportFormat.PDF, new PDFReportGenerator());
@@ -64,10 +59,19 @@ public class AnalyticsService implements IAnalyticsService {
             reportData.addMetric("Event Title", event.getTitle());
             reportData.addMetric("Total Donors", stats.getTotalDonors());
             reportData.addMetric("Total Volunteers", stats.getTotalVolunteers());
-            reportData.addMetric("Blood Goal (L)", event.getBloodGoal());
-            reportData.addMetric("Blood Collected (L)", event.getCurrentBloodCollected());
-            reportData.addMetric("Achievement Rate",
-                    String.format("%.1f%%", (event.getCurrentBloodCollected() / event.getBloodGoal()) * 100));
+            reportData.addMetric("Total Blood Goal (L)", event.getTotalTargetAmount());
+            reportData.addMetric("Total Blood Collected (L)", event.getTotalCollectedAmount());
+
+            // Add blood type breakdown
+            Map<String, BloodTypeRequirement> requirements = event.getBloodRequirements();
+            requirements.forEach((type, req) -> {
+                reportData.addMetric(type + " Goal (L)", req.getTargetAmount());
+                reportData.addMetric(type + " Collected (L)", req.getCollectedAmount());
+                reportData.addMetric(type + " Progress", String.format("%.1f%%", req.getProgress()));
+            });
+
+            double overallProgress = event.getTotalCollectedAmount() / event.getTotalTargetAmount() * 100;
+            reportData.addMetric("Overall Progress", String.format("%.1f%%", overallProgress));
 
             return generators.get(format).generate(reportData);
         } catch (Exception e) {
@@ -75,7 +79,6 @@ public class AnalyticsService implements IAnalyticsService {
         }
     }
 
-    @SuppressLint("DefaultLocale")
     @Override
     public byte[] generateSiteManagerReport(String managerId, ReportFormat format) throws AnalyticsException {
         try {
@@ -87,54 +90,51 @@ public class AnalyticsService implements IAnalyticsService {
             }
 
             List<DonationEvent> managerEvents = eventRepository.findEventsByHostId(managerId);
-
             if (managerEvents.isEmpty()) {
-                throw new AnalyticsException(AnalyticsErrorCode.NO_DATA, "No events found for this manager");
+                throw new AnalyticsException(AnalyticsErrorCode.NO_DATA, "No events found");
             }
 
             ReportData reportData = new ReportData();
             reportData.addMetric("Manager Name", manager.getFullName());
             reportData.addMetric("Total Events", managerEvents.size());
 
-            double totalBloodCollected = 0;
-            double totalBloodGoal = 0;
+            Map<String, Double> totalsByBloodType = new HashMap<>();
+            Map<String, Double> goalsByBloodType = new HashMap<>();
             int totalDonors = 0;
             int totalVolunteers = 0;
-            Map<String, Double> bloodTypeCollected = new HashMap<>();
 
             for (DonationEvent event : managerEvents) {
-                totalBloodCollected += event.getCurrentBloodCollected();
-                totalBloodGoal += event.getBloodGoal();
+                // Aggregate blood type data
+                event.getBloodRequirements().forEach((type, req) -> {
+                    totalsByBloodType.merge(type, req.getCollectedAmount(), Double::sum);
+                    goalsByBloodType.merge(type, req.getTargetAmount(), Double::sum);
+                });
 
-                totalDonors += registrationRepository.getRegistrationCount(
-                        event.getEventId(),
-                        RegistrationType.DONOR
-                );
-
-                totalVolunteers += registrationRepository.getRegistrationCount(
-                        event.getEventId(),
-                        RegistrationType.VOLUNTEER
-                );
-
-                // Aggregate blood types
-                for (Map.Entry<String, Double> entry : event.getBloodTypeCollected().entrySet()) {
-                    bloodTypeCollected.merge(entry.getKey(), entry.getValue(), Double::sum);
-                }
+                totalDonors += registrationRepository.getRegistrationCount(event.getEventId(), RegistrationType.DONOR);
+                totalVolunteers += registrationRepository.getRegistrationCount(event.getEventId(), RegistrationType.VOLUNTEER);
             }
 
-            reportData.addMetric("Total Blood Collected (L)", totalBloodCollected);
-            reportData.addMetric("Total Blood Goal (L)", totalBloodGoal);
-            reportData.addMetric("Achievement Rate",
-                    String.format("%.1f%%", (totalBloodCollected / totalBloodGoal) * 100));
             reportData.addMetric("Total Donors", totalDonors);
             reportData.addMetric("Total Volunteers", totalVolunteers);
-            reportData.addMetric("Blood Types Collected", bloodTypeCollected);
+
+            // Add blood type statistics
+            goalsByBloodType.forEach((type, goal) -> {
+                double collected = totalsByBloodType.getOrDefault(type, 0.0);
+                reportData.addMetric(type + " Total Goal (L)", goal);
+                reportData.addMetric(type + " Total Collected (L)", collected);
+                reportData.addMetric(type + " Achievement Rate", String.format("%.1f%%", (collected/goal) * 100));
+            });
+
+            // Overall statistics
+            double totalCollected = totalsByBloodType.values().stream().mapToDouble(Double::doubleValue).sum();
+            double totalGoal = goalsByBloodType.values().stream().mapToDouble(Double::doubleValue).sum();
+            reportData.addMetric("Overall Blood Goal (L)", totalGoal);
+            reportData.addMetric("Overall Blood Collected (L)", totalCollected);
+            reportData.addMetric("Overall Achievement Rate", String.format("%.1f%%", (totalCollected/totalGoal) * 100));
 
             return generators.get(format).generate(reportData);
         } catch (Exception e) {
-            if (e instanceof AnalyticsException) {
-                throw (AnalyticsException) e;
-            }
+            if (e instanceof AnalyticsException) throw (AnalyticsException) e;
             throw new AnalyticsException(AnalyticsErrorCode.PROCESSING_ERROR, e.getMessage());
         }
     }
@@ -153,35 +153,37 @@ public class AnalyticsService implements IAnalyticsService {
             reportData.addMetric("Total Events", events.size());
 
             // User statistics
-            long totalDonors = users.stream()
-                    .filter(u -> u.getUserType() == UserType.DONOR)
-                    .count();
-            long totalManagers = users.stream()
-                    .filter(u -> u.getUserType() == UserType.SITE_MANAGER)
-                    .count();
+            reportData.addMetric("New Donors", users.stream().filter(u -> u.getUserType() == UserType.DONOR).count());
+            reportData.addMetric("New Site Managers", users.stream().filter(u -> u.getUserType() == UserType.SITE_MANAGER).count());
 
-            reportData.addMetric("Total Registered Donors", totalDonors);
-            reportData.addMetric("Total Site Managers", totalManagers);
+            // Blood collection statistics
+            Map<String, Double> totalsByBloodType = new HashMap<>();
+            Map<String, Double> goalsByBloodType = new HashMap<>();
 
-            // Event statistics
-            double totalBloodCollected = events.stream()
-                    .mapToDouble(DonationEvent::getCurrentBloodCollected)
-                    .sum();
-            double totalBloodGoal = events.stream()
-                    .mapToDouble(DonationEvent::getBloodGoal)
-                    .sum();
+            for (DonationEvent event : events) {
+                event.getBloodRequirements().forEach((type, req) -> {
+                    totalsByBloodType.merge(type, req.getCollectedAmount(), Double::sum);
+                    goalsByBloodType.merge(type, req.getTargetAmount(), Double::sum);
+                });
+            }
 
-            reportData.addMetric("Total Blood Collected (L)", totalBloodCollected);
-            reportData.addMetric("Total Blood Goal (L)", totalBloodGoal);
-            reportData.addMetric("Overall Achievement Rate",
-                    String.format("%.1f%%", (totalBloodCollected / totalBloodGoal) * 100));
+            goalsByBloodType.forEach((type, goal) -> {
+                double collected = totalsByBloodType.getOrDefault(type, 0.0);
+                reportData.addMetric(type + " Total Goal (L)", goal);
+                reportData.addMetric(type + " Total Collected (L)", collected);
+                reportData.addMetric(type + " Achievement Rate", String.format("%.1f%%", (collected/goal) * 100));
+            });
 
-            // Status breakdown
+            // Overall statistics
+            double totalCollected = totalsByBloodType.values().stream().mapToDouble(Double::doubleValue).sum();
+            double totalGoal = goalsByBloodType.values().stream().mapToDouble(Double::doubleValue).sum();
+            reportData.addMetric("Overall Blood Goal (L)", totalGoal);
+            reportData.addMetric("Overall Blood Collected (L)", totalCollected);
+            reportData.addMetric("Overall Achievement Rate", String.format("%.1f%%", (totalCollected/totalGoal) * 100));
+
+            // Event status breakdown
             Map<EventStatus, Long> statusCounts = events.stream()
-                    .collect(Collectors.groupingBy(
-                            DonationEvent::getStatus,
-                            Collectors.counting()
-                    ));
+                    .collect(Collectors.groupingBy(DonationEvent::getStatus, Collectors.counting()));
             reportData.addMetric("Event Status Breakdown", statusCounts);
 
             return generators.get(format).generate(reportData);
@@ -191,23 +193,12 @@ public class AnalyticsService implements IAnalyticsService {
     }
 
     private long calculateStartTime(ReportTimeframe timeframe) {
-        long now = System.currentTimeMillis();
         Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(now);
-
         switch (timeframe) {
-            case DAILY:
-                cal.add(Calendar.DAY_OF_MONTH, -1);
-                break;
-            case WEEKLY:
-                cal.add(Calendar.WEEK_OF_YEAR, -1);
-                break;
-            case MONTHLY:
-                cal.add(Calendar.MONTH, -1);
-                break;
-            case YEARLY:
-                cal.add(Calendar.YEAR, -1);
-                break;
+            case DAILY: cal.add(Calendar.DAY_OF_MONTH, -1); break;
+            case WEEKLY: cal.add(Calendar.WEEK_OF_YEAR, -1); break;
+            case MONTHLY: cal.add(Calendar.MONTH, -1); break;
+            case YEARLY: cal.add(Calendar.YEAR, -1); break;
         }
         return cal.getTimeInMillis();
     }

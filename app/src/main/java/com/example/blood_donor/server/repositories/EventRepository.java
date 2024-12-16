@@ -17,10 +17,14 @@ import com.example.blood_donor.server.utils.QueryBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -138,34 +142,52 @@ public class EventRepository implements IEventRepository {
                 .build();
 
         // Convert blood types string from DB to List
-        String bloodTypesJson = cursor.getString(cursor.getColumnIndexOrThrow("required_blood_types"));
-        List<String> bloodTypes = new ArrayList<>();
+        Map<String, Double> bloodTypeTargets = new HashMap<>();
+        // Parse blood_type_targets from JSON string
+        String targetsJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_type_targets"));
         try {
-            JSONArray jsonArray = new JSONArray(bloodTypesJson);
-            for (int i = 0; i < jsonArray.length(); i++) {
-                bloodTypes.add(jsonArray.getString(i));
+            JSONObject targets = new JSONObject(targetsJson);
+            Iterator<String> keys = targets.keys();
+            while(keys.hasNext()) {
+                String type = keys.next();
+                bloodTypeTargets.put(type, targets.getDouble(type));
             }
         } catch (JSONException e) {
-            // Handle error or use empty list
+            // Handle error
         }
 
+
         // Create the DonationEvent object
-        return new DonationEvent(
+        DonationEvent event = new DonationEvent(
                 cursor.getString(cursor.getColumnIndexOrThrow("id")),
                 cursor.getString(cursor.getColumnIndexOrThrow("title")),
                 cursor.getString(cursor.getColumnIndexOrThrow("description")),
                 cursor.getLong(cursor.getColumnIndexOrThrow("start_time")),
                 cursor.getLong(cursor.getColumnIndexOrThrow("end_time")),
                 location,
-                bloodTypes,
-                cursor.getDouble(cursor.getColumnIndexOrThrow("blood_goal")),
+                bloodTypeTargets,
                 cursor.getString(cursor.getColumnIndexOrThrow("host_id"))
         );
+
+        String collectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
+        try {
+            JSONObject collected = new JSONObject(collectedJson);
+            Iterator<String> keys = collected.keys();
+            while(keys.hasNext()) {
+                String type = keys.next();
+                double amount = collected.getDouble(type);
+                event.recordDonation(type, amount);
+            }
+        } catch (JSONException e) {
+            // Handle error
+        }
+
+        return event;
     }
 
     @Override
     public int countEvents(EventQueryDTO query) throws AppException {
-        SQLiteDatabase db = null;
+        SQLiteDatabase db;
         Cursor cursor = null;
         try {
             db = dbHelper.getReadableDatabase();
@@ -247,9 +269,6 @@ public class EventRepository implements IEventRepository {
             values.put("description", event.getDescription());
             values.put("start_time", event.getStartTime());
             values.put("end_time", event.getEndTime());
-            values.put("blood_goal", event.getBloodGoal());
-            values.put("current_blood_collected", event.getCurrentBloodCollected());
-            values.put("required_blood_types", new JSONArray(event.getRequiredBloodTypes()).toString());
             values.put("host_id", event.getHostId());
             values.put("status", event.getStatus().name());
             values.put("location_id", event.getLocation().getLocationId());

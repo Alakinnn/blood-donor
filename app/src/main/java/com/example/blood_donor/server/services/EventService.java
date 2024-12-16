@@ -203,7 +203,7 @@ public class EventService implements IEventService {
         summary.setLongitude(event.getLocation().getLongitude());
         summary.setStartTime(event.getStartTime());
         summary.setEndTime(event.getEndTime());
-        summary.setCurrentBloodCollected(event.getCurrentBloodCollected());
+        summary.setCurrentBloodCollected(event.getTotalCollectedAmount());
         if (event.getDistance() != null) {
             summary.setDistance(event.getDistance());
         }

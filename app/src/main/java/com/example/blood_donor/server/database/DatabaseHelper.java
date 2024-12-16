@@ -61,9 +61,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "description TEXT," +
                     "start_time INTEGER NOT NULL," +
                     "end_time INTEGER NOT NULL," +
-                    "blood_goal REAL NOT NULL," +
-                    "current_blood_collected REAL DEFAULT 0," +
-                    "required_blood_types TEXT NOT NULL," + // Stored as JSON array
+                    "blood_type_targets TEXT NOT NULL," + // JSON object of blood type targets
+                    "blood_collected TEXT NOT NULL," + // JSON object of collected amounts
                     "host_id TEXT NOT NULL," +
                     "status TEXT NOT NULL," +
                     "location_id TEXT NOT NULL," +

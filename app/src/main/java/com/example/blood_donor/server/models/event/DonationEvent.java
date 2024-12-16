@@ -12,7 +12,6 @@ public class DonationEvent {
     private long startTime;
     private long endTime;
     private Location location;
-    private double currentBloodCollected;
     private String hostId;
     private EventStatus status;
     private Double distance; // Add this field
@@ -32,7 +31,6 @@ public class DonationEvent {
         this.startTime = startTime;
         this.endTime = endTime;
         this.location = location;
-        this.currentBloodCollected = 0.0;
         this.hostId = hostId;
         this.status = EventStatus.UPCOMING;
         this.distance = null;
@@ -127,15 +125,6 @@ public class DonationEvent {
 
     public void setLocation(Location location) {
         this.location = location;
-    }
-
-
-    public double getCurrentBloodCollected() {
-        return currentBloodCollected;
-    }
-
-    public void setCurrentBloodCollected(double currentBloodCollected) {
-        this.currentBloodCollected = currentBloodCollected;
     }
 
     public String getHostId() {
