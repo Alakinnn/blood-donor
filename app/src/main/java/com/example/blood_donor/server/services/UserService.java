@@ -13,6 +13,7 @@ import com.example.blood_donor.server.repositories.ISessionRepository;
 import com.example.blood_donor.server.repositories.IUserRepository;
 import com.example.blood_donor.server.services.interfaces.IAuthService;
 import com.example.blood_donor.server.services.interfaces.IUserService;
+import com.example.blood_donor.ui.manager.AuthManager;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -59,13 +60,19 @@ public class UserService implements IUserService {
             );
 
             // Save user
-            Optional<User> savedUser = userRepository.createUser(newUser);
+            User savedUser = userRepository.createUser(newUser).orElseThrow(() -> new AppException(ErrorCode.DATABASE_ERROR, "Failed to create user"));;
 
-            // Generate token
-            String token = authService.generateToken(savedUser.get());
-            sessionRepository.saveSession(token, savedUser.get().getUserId());
+            String token = authService.generateToken(savedUser);
+            sessionRepository.saveSession(token, savedUser.getUserId());
 
-            return ApiResponse.success(new AuthResponse(savedUser.get(), token));
+            AuthManager.getInstance().saveAuthToken(
+                    token,
+                    savedUser.getUserId(),
+                    savedUser.getUserType(),
+                    savedUser.getFullName()
+            );
+
+            return ApiResponse.success(new AuthResponse(savedUser, token));
 
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
@@ -99,6 +106,15 @@ public class UserService implements IUserService {
 
             String token = authService.generateToken(savedUser);
             sessionRepository.saveSession(token, savedUser.getUserId());
+
+            // Add this
+            AuthManager.getInstance().saveAuthToken(
+                    token,
+                    savedUser.getUserId(),
+                    savedUser.getUserType(),
+                    savedUser.getFullName()
+            );
+
             return ApiResponse.success(new AuthResponse(savedUser, token));
 
         } catch (AppException e) {
@@ -122,6 +138,14 @@ public class UserService implements IUserService {
 
             // Save session
             sessionRepository.saveSession(sessionToken, user.getUserId());
+
+            // Save to AuthManager - Add this
+            AuthManager.getInstance().saveAuthToken(
+                    sessionToken,
+                    user.getUserId(),
+                    user.getUserType(),
+                    user.getFullName()
+            );
 
             return ApiResponse.success(new AuthResponse(user, sessionToken));
 

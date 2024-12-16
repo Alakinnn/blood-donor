@@ -1,12 +1,16 @@
 package com.example.blood_donor.ui.manager;
 import android.content.SharedPreferences;
 
+import com.example.blood_donor.server.models.user.UserType;
+
 public class AuthManager {
     private static volatile AuthManager instance;
     private SharedPreferences prefs;
     private static final String PREF_AUTH = "auth_prefs";
     private static final String KEY_TOKEN = "auth_token";
     private static final String KEY_USER_ID = "user_id";
+    private static final String KEY_USER_TYPE = "user_type";
+    private static final String KEY_USER_NAME = "user_name";
 
     private AuthManager() {
         // Prevent instantiation
@@ -27,10 +31,12 @@ public class AuthManager {
         this.prefs = prefs;
     }
 
-    public void saveAuthToken(String token, String userId) {
+    public void saveAuthToken(String token, String userId, UserType userType, String userName) {
         prefs.edit()
                 .putString(KEY_TOKEN, token)
                 .putString(KEY_USER_ID, userId)
+                .putString(KEY_USER_TYPE, userType.name())
+                .putString(KEY_USER_NAME, userName)
                 .apply();
     }
 
@@ -38,6 +44,8 @@ public class AuthManager {
         prefs.edit()
                 .remove(KEY_TOKEN)
                 .remove(KEY_USER_ID)
+                .remove(KEY_USER_TYPE)
+                .remove(KEY_USER_NAME)
                 .apply();
     }
 
@@ -51,5 +59,14 @@ public class AuthManager {
 
     public String getUserId() {
         return prefs.getString(KEY_USER_ID, null);
+    }
+
+    public UserType getUserType() {
+        String userType = prefs.getString(KEY_USER_TYPE, null);
+        return userType != null ? UserType.valueOf(userType) : null;
+    }
+
+    public String getUserName() {
+        return prefs.getString(KEY_USER_NAME, "");
     }
 }
