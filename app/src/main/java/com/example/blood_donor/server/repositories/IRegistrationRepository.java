@@ -7,4 +7,6 @@ public interface IRegistrationRepository {
     void register(String userId, String eventId, RegistrationType type) throws AppException;
     boolean isRegistered(String userId, String eventId) throws AppException;
     int getRegistrationCount(String eventId, RegistrationType type) throws AppException;
+    void unregister(String userId, String eventId) throws AppException;
+    void updateStatus(String registrationId, String status) throws AppException;
 }

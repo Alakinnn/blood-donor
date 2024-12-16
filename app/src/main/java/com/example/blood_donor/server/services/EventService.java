@@ -16,6 +16,7 @@ import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.models.user.User;
 import com.example.blood_donor.server.repositories.IEventRepository;
 import com.example.blood_donor.server.repositories.ILocationRepository;
+import com.example.blood_donor.server.repositories.IRegistrationRepository;
 import com.example.blood_donor.server.repositories.IUserRepository;
 import com.example.blood_donor.server.repositories.RegistrationRepository;
 import com.example.blood_donor.server.services.interfaces.IEventService;
@@ -30,13 +31,13 @@ public class EventService implements IEventService {
     private final IEventRepository eventRepository;
     private final ILocationRepository locationRepository;
     private final IUserRepository userRepository;
-    private final RegistrationRepository registrationRepository;
+    private final IRegistrationRepository registrationRepository;
     private final EventCacheService cacheService;
 
     public EventService(IEventRepository eventRepository,
                         EventCacheService cacheService,
                         ILocationRepository locationRepository,
-                        IUserRepository userRepository, RegistrationRepository registrationRepository) {
+                        IUserRepository userRepository, IRegistrationRepository registrationRepository) {
         this.eventRepository = eventRepository;
         this.cacheService = cacheService;
         this.userRepository = userRepository;
@@ -208,5 +209,49 @@ public class EventService implements IEventService {
             summary.setDistance(event.getDistance());
         }
         return summary;
+    }
+
+    public ApiResponse<List<EventSummaryDTO>> convertToEventSummaries(List<DonationEvent> events) {
+        try {
+            List<EventSummaryDTO> summaries = events.stream()
+                    .map(event -> {
+                        EventSummaryDTO summary = new EventSummaryDTO();
+                        summary.setEventId(event.getEventId());
+                        summary.setTitle(event.getTitle());
+                        summary.setLatitude(event.getLocation().getLatitude());
+                        summary.setLongitude(event.getLocation().getLongitude());
+                        summary.setStartTime(event.getStartTime());
+                        summary.setEndTime(event.getEndTime());
+                        summary.setBloodGoal(event.getTotalTargetAmount());
+                        summary.setCurrentBloodCollected(event.getTotalCollectedAmount());
+                        summary.setRequiredBloodTypes(
+                                event.getBloodRequirements().keySet().stream().collect(Collectors.toList())
+                        );
+
+                        // Convert blood requirements to progress list
+                        List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
+                                .map(req -> new BloodTypeProgress(
+                                        req.getTargetAmount(),
+                                        req.getCollectedAmount()
+                                ))
+                                .collect(Collectors.toList());
+                        summary.setBloodProgress(bloodProgress);
+
+                        if (event.getDistance() != null) {
+                            summary.setDistance(event.getDistance());
+                        }
+
+                        double totalProgress = event.getTotalTargetAmount() > 0 ?
+                                (event.getTotalCollectedAmount() / event.getTotalTargetAmount()) * 100 : 0;
+                        summary.setTotalProgress(totalProgress);
+
+                        return summary;
+                    })
+                    .collect(Collectors.toList());
+
+            return ApiResponse.success(summaries);
+        } catch (Exception e) {
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 }

@@ -99,4 +99,14 @@ public class RegistrationRepository implements IRegistrationRepository {
             }
         }
     }
+
+    @Override
+    public void unregister(String userId, String eventId) throws AppException {
+
+    }
+
+    @Override
+    public void updateStatus(String registrationId, String status) throws AppException {
+
+    }
 }
