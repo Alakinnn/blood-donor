@@ -10,6 +10,7 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.auth.LoginRequest;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.interfaces.IUserService;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textview.MaterialTextView;
@@ -22,8 +23,8 @@ public class LoginActivity extends AppCompatActivity {
     private MaterialTextView managerSignUpText;
     private final IUserService userService;
 
-    public LoginActivity(IUserService userService) {
-        this.userService = userService;
+    public LoginActivity() {
+        this.userService = ServiceLocator.getUserService();
     }
 
     @Override

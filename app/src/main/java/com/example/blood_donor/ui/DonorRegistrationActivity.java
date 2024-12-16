@@ -6,16 +6,13 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.auth.DonorRegisterRequest;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.interfaces.IUserService;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textview.MaterialTextView;
@@ -39,8 +36,8 @@ public class DonorRegistrationActivity extends AppCompatActivity {
     private static final String[] BLOOD_TYPES = new String[]{"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
     private static final String[] GENDERS = new String[]{"Male", "Female", "Other"};
 
-    public DonorRegistrationActivity(IUserService userService) {
-        this.userService = userService;
+    public DonorRegistrationActivity() {
+        this.userService = ServiceLocator.getUserService(); // We'll create this
     }
 
     @Override

@@ -16,6 +16,7 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.auth.ManagerRegisterRequest;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.interfaces.IUserService;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textview.MaterialTextView;
@@ -38,8 +39,8 @@ public class ManagerRegistrationActivity extends AppCompatActivity {
 
     private static final String[] GENDERS = new String[]{"Male", "Female", "Other"};
 
-    public ManagerRegistrationActivity(IUserService userService) {
-        this.userService = userService;
+    public ManagerRegistrationActivity() {
+        this.userService = ServiceLocator.getUserService();
     }
 
     @Override

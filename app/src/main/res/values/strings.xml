@@ -1,3 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">blood-donor</string>
+    <string name="app_name">Blood Donor</string>
+    <string name="next">Next</string>
+    <string name="skip">Skip</string>
+    <string name="start">Get Started</string>
+    <string name="slide_image">Slide image</string>
+
+    <!-- Intro slider content -->
+    <string name="intro_heading_1">Find Blood Donation Events</string>
+    <string name="intro_heading_2">Make a Difference</string>
+    <string name="intro_heading_3">Track Your Impact</string>
+
+    <string name="intro_desc_1">Easily locate blood donation events near you through our interactive map</string>
+    <string name="intro_desc_2">Join events as a donor or volunteer to help save lives in your community</string>
+    <string name="intro_desc_3">Monitor your donations and see the real impact you make in people\'s lives</string>
 </resources>

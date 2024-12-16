@@ -3,8 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".BloodDonorApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -12,25 +14,34 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Blooddonor"
+        android:theme="@style/Theme.BloodDonor"
         tools:targetApi="31">
+
         <activity
-            android:name=".ui.ManagerRegistrationActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.DonorRegistrationActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.MainActivity"
-            android:exported="true">
+            android:name=".ui.IntroSliderActivity"
+            android:exported="true"
+            android:theme="@style/Theme.BloodDonor.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
         <activity
             android:name=".ui.LoginActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.DonorRegistrationActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.ManagerRegistrationActivity"
             android:exported="false" />
     </application>
 
