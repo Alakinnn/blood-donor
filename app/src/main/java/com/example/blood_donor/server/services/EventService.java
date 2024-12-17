@@ -19,7 +19,6 @@ import com.example.blood_donor.server.repositories.IEventRepository;
 import com.example.blood_donor.server.repositories.ILocationRepository;
 import com.example.blood_donor.server.repositories.IRegistrationRepository;
 import com.example.blood_donor.server.repositories.IUserRepository;
-import com.example.blood_donor.server.repositories.RegistrationRepository;
 import com.example.blood_donor.server.services.interfaces.IEventService;
 
 import java.util.Arrays;

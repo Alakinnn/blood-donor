@@ -14,4 +14,6 @@ public interface IUserService {
     ApiResponse<AuthResponse> login(LoginRequest request);
     ApiResponse<Void> logout(String token);
     ApiResponse<Void> logoutAll(String userId);
+
+    void shutdown();
 }

@@ -4,19 +4,22 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
+
 
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.errors.ErrorCode;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class DatabaseHelper extends SQLiteOpenHelper {
+    private static final String TAG = "DatabaseHelper";
     private static final String DATABASE_NAME = "BloodDonor.db";
     private static final int DATABASE_VERSION = 1;
-    private final SQLiteDatabase.CursorFactory factory = null;
-    private SQLiteDatabase writeableDb;
-    private SQLiteDatabase readableDb;
+    private static volatile DatabaseHelper instance;
+    private final AtomicInteger mOpenCounter = new AtomicInteger();
+    private SQLiteDatabase mDatabase;
     private final Object dbLock = new Object();
 
     // Table Names
@@ -88,6 +91,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "CHECK (latitude >= -90 AND latitude <= 90 AND " +
                     "longitude >= -180 AND longitude <= 180)" +
                     ")";
+
     private static final String CREATE_TABLE_SESSIONS =
             "CREATE TABLE " + TABLE_SESSIONS + "(" +
                     "token TEXT PRIMARY KEY," +
@@ -103,196 +107,140 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "event_id TEXT NOT NULL," +
                     "type TEXT NOT NULL," +  // DONOR or VOLUNTEER
                     "registration_time INTEGER NOT NULL," +
-                    "status TEXT NOT NULL DEFAULT 'ACTIVE'," + // Add status field with default
+                    "status TEXT NOT NULL DEFAULT 'ACTIVE'," +
                     "FOREIGN KEY (user_id) REFERENCES " + TABLE_USERS + "(id) ON DELETE CASCADE," +
                     "FOREIGN KEY (event_id) REFERENCES " + TABLE_EVENTS + "(id) ON DELETE CASCADE" +
                     ")";
 
-    private static final String CREATE_LOCATION_INDEXES =
-            "CREATE INDEX IF NOT EXISTS idx_location_coordinates ON " +
-                    "locations(latitude, longitude)";
+    public static synchronized DatabaseHelper getInstance(Context context) {
+        if (instance == null) {
+            synchronized (DatabaseHelper.class) {
+                if (instance == null) {
+                    instance = new DatabaseHelper(context.getApplicationContext());
+                }
+            }
+        }
+        return instance;
+    }
 
-    private static final String CREATE_LOCATION_TRIGGERS =
-            "CREATE TRIGGER IF NOT EXISTS validate_coordinates " +
-                    "BEFORE INSERT ON locations " +
-                    "BEGIN " +
-                    "    SELECT CASE " +
-                    "        WHEN NEW.latitude < -90 OR NEW.latitude > 90 OR " +
-                    "             NEW.longitude < -180 OR NEW.longitude > 180 " +
-                    "        THEN RAISE(ABORT, 'Invalid coordinates') " +
-                    "    END; " +
-                    "END;";
-
-    // Constructor
-    public DatabaseHelper(Context context) {
+    private DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    public synchronized SQLiteDatabase openDatabase() throws AppException {
+        try {
+            if (mOpenCounter.incrementAndGet() == 1) {
+                synchronized (dbLock) {
+                    if (mDatabase == null || !mDatabase.isOpen()) {
+                        mDatabase = getWritableDatabase();
+                    }
+                }
+            }
+            return mDatabase;
+        } catch (SQLException e) {
+            mOpenCounter.decrementAndGet();
+            throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to open database: " + e.getMessage());
+        }
+    }
+
+    public synchronized void closeDatabase() {
+        if (mOpenCounter.decrementAndGet() == 0) {
+            synchronized (dbLock) {
+                if (mDatabase != null && mDatabase.isOpen()) {
+                    mDatabase.close();
+                    mDatabase = null;
+                }
+            }
+        }
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
         try {
-            // Create existing tables
-            db.execSQL(CREATE_TABLE_USERS);
+            db.beginTransaction();
 
-            // Create sessions table
-            db.execSQL(
-                    CREATE_TABLE_SESSIONS
-            );
+            // Create tables
+            db.execSQL(CREATE_TABLE_USERS);
             db.execSQL(CREATE_TABLE_LOCATIONS);
             db.execSQL(CREATE_TABLE_EVENTS);
-            // Add in onCreate():
+            db.execSQL(CREATE_TABLE_SESSIONS);
             db.execSQL(CREATE_TABLE_REGISTRATIONS);
-            // Create indexes for Users
-            db.execSQL("CREATE INDEX idx_users_email ON users(email)");
 
-            // Create indexes for Sessions
-            db.execSQL("CREATE INDEX idx_sessions_user_id ON sessions(user_id)");
+            // Create indexes
+            createIndexes(db);
 
-            // Create indexes for Events
-            db.execSQL("CREATE INDEX idx_events_start_time ON events(start_time)");
-            db.execSQL("CREATE INDEX idx_events_status ON events(status)");
-            db.execSQL("CREATE INDEX idx_events_location ON events(location_id)");
-            db.execSQL("CREATE INDEX idx_events_host ON events(host_id)");
-
-            // Create indexes for Registrations
-            db.execSQL("CREATE INDEX idx_registrations_user_event ON registrations(user_id, event_id)");
-            db.execSQL("CREATE INDEX idx_registrations_status ON registrations(status)");
-            db.execSQL("CREATE INDEX idx_registrations_type_status ON registrations(type, status)");
-
-            // Create indexes for Locations
-            db.execSQL("CREATE INDEX idx_locations_coords ON locations(latitude, longitude)");
-            db.execSQL(CREATE_LOCATION_INDEXES);
-            db.execSQL(CREATE_LOCATION_TRIGGERS);
+            db.setTransactionSuccessful();
         } catch (SQLException e) {
-            Log.e("DatabaseHelper", "Error creating database", e);
+            Log.e(TAG, "Error creating database", e);
             throw e;
+        } finally {
+            db.endTransaction();
         }
+    }
+
+    private void createIndexes(SQLiteDatabase db) {
+        // Users indexes
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
+
+        // Sessions indexes
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)");
+
+        // Events indexes
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_events_host ON events(host_id)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_events_location ON events(location_id)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_events_time ON events(start_time, end_time)");
+
+        // Locations indexes
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_locations_coords ON locations(latitude, longitude)");
+
+        // Registrations indexes
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_registrations_event ON registrations(event_id)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_registrations_user ON registrations(user_id)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status)");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // In production, implement proper migration logic
         try {
-            // In development, we might want to drop and recreate
-            // In production, we should migrate data properly
+            db.beginTransaction();
+
+            // Drop all tables
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_REGISTRATIONS);
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_EVENTS);
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_LOCATIONS);
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_SESSIONS);
             db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
+
+            // Recreate tables
             onCreate(db);
-        } catch (SQLException e) {
-            Log.e("DatabaseHelper", "Error upgrading database", e);
-            throw e;
-        }
-    }
 
-    // Helper method to get readable database with error handling
-    public SQLiteDatabase getWritableDatabaseWithRetry() throws AppException {
-        synchronized (dbLock) {
-            int retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                    if (writeableDb == null || !writeableDb.isOpen()) {
-                        writeableDb = getWritableDatabase();
-                    }
-                    return writeableDb;
-                } catch (SQLiteException e) {
-                    Log.e("DatabaseHelper", "Error getting writable database (attempt " + (retryCount + 1) + ")", e);
-                    retryCount++;
-                    if (writeableDb != null) {
-                        writeableDb.close();
-                        writeableDb = null;
-                    }
-                    // Wait before retry
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new AppException(ErrorCode.DATABASE_ERROR, "Database operation interrupted");
-                    }
-                }
-            }
-            throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to get writable database after retries");
-        }
-    }
-
-    public SQLiteDatabase getReadableDatabaseWithRetry() throws AppException {
-        synchronized (dbLock) {
-            int retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                    if (readableDb == null || !readableDb.isOpen()) {
-                        readableDb = getReadableDatabase();
-                    }
-                    return readableDb;
-                } catch (SQLiteException e) {
-                    Log.e("DatabaseHelper", "Error getting readable database (attempt " + (retryCount + 1) + ")", e);
-                    retryCount++;
-                    if (readableDb != null) {
-                        readableDb.close();
-                        readableDb = null;
-                    }
-                    // Wait before retry
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new AppException(ErrorCode.DATABASE_ERROR, "Database operation interrupted");
-                    }
-                }
-            }
-            throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to get readable database after retries");
-        }
-    }
-
-    @Override
-    public void close() {
-        synchronized (dbLock) {
-            if (writeableDb != null) {
-                writeableDb.close();
-                writeableDb = null;
-            }
-            if (readableDb != null) {
-                readableDb.close();
-                readableDb = null;
-            }
-            super.close();
-        }
-    }
-
-    // Helper method to check if table exists
-    public boolean isTableExists(String tableName) {
-        SQLiteDatabase db = null;
-        Cursor cursor = null;
-        try {
-            db = getReadableDatabase();
-            cursor = db.rawQuery(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                    new String[]{tableName}
-            );
-            return cursor != null && cursor.getCount() > 0;
+            db.setTransactionSuccessful();
         } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            db.endTransaction();
         }
     }
 
-    // Helper method to get table row count
-    public int getTableRowCount(String tableName) throws AppException {
+    public <T> T executeTransaction(DatabaseOperation<T> operation) throws AppException {
         SQLiteDatabase db = null;
-        Cursor cursor = null;
         try {
-            db = getReadableDatabaseWithRetry();
-            cursor = db.rawQuery("SELECT COUNT(*) FROM " + tableName, null);
-            if (cursor.moveToFirst()) {
-                return cursor.getInt(0);
-            }
-            return 0;
+            db = openDatabase();
+            db.beginTransaction();
+            T result = operation.execute(db);
+            db.setTransactionSuccessful();
+            return result;
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR, "Transaction failed: " + e.getMessage());
         } finally {
-            if (cursor != null) {
-                cursor.close();
+            if (db != null) {
+                db.endTransaction();
+                closeDatabase();
             }
         }
     }
 
-    private static final String LOCATION_TABLE_CONSTRAINTS =
-            "CHECK (latitude >= -90 AND latitude <= 90 AND " +
-                    "longitude >= -180 AND longitude <= 180)";
+    public interface DatabaseOperation<T> {
+        T execute(SQLiteDatabase database) throws Exception;
+    }
 }
