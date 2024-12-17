@@ -127,8 +127,29 @@ public class HomeActivity extends AppCompatActivity {
         // Then set up selection
         bottomNavigation.setSelectedItemId(R.id.nav_home);
         bottomNavigation.setOnItemSelectedListener(item -> {
-            // Handle navigation
-            return true;
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_home) {
+                return true;
+            } else if (itemId == R.id.nav_map) {
+                Intent intent = new Intent(this, MapActivity.class);
+                // Add transition animation
+                startActivity(intent);
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+                return true;
+            } else if (itemId == R.id.nav_history) {
+                // TODO: Implement history navigation
+                return true;
+            } else if (itemId == R.id.nav_profile) {
+                // TODO: Implement profile navigation
+                return true;
+            } else if (itemId == R.id.nav_create && isManager) {
+                // TODO: Implement event creation for managers
+                return true;
+            } else if (itemId == R.id.nav_my_events && isManager) {
+                // TODO: Implement my events for managers
+                return true;
+            }
+            return false;
         });
     }
 
