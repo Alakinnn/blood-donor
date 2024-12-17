@@ -1,5 +1,7 @@
 package com.example.blood_donor.ui.map;
 
+import androidx.annotation.Nullable;
+
 import com.example.blood_donor.server.dto.events.EventMarkerDTO;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.maps.android.clustering.ClusterItem;
@@ -38,6 +40,12 @@ public class EventClusterItem implements ClusterItem {
     @Override
     public String getSnippet() {
         return snippet;
+    }
+
+    @Nullable
+    @Override
+    public Float getZIndex() {
+        return 0f;
     }
 
     public String getEventId() {

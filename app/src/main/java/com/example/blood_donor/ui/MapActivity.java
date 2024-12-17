@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -15,7 +16,9 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventMarkerDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.server.services.EventService;
+import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -27,6 +30,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textview.MaterialTextView;
@@ -53,6 +57,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private MaterialTextView eventTitleView;
     private MaterialTextView eventDateView;
     private MaterialTextView eventProgressView;
+    private BottomNavigationView bottomNavigation;
 
     public MapActivity() {
         this.eventService = ServiceLocator.getEventService();
@@ -66,7 +71,39 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         initializeViews();
         setupLocationClient();
         setupMap();
+        setupBottomNavigation();
     }
+
+   private void setupBottomNavigation() {
+        bottomNavigation = findViewById(R.id.bottomNavigation);
+        // Set the appropriate menu based on user type
+        UserType userType = AuthManager.getInstance().getUserType();
+        bottomNavigation.getMenu().clear();
+        bottomNavigation.inflateMenu(userType == UserType.SITE_MANAGER ?
+                R.menu.bottom_nav_manager : R.menu.bottom_nav_donor);
+
+        // Set the map item as selected
+        bottomNavigation.setSelectedItemId(R.id.nav_map);
+
+        bottomNavigation.setOnItemSelectedListener(item -> {
+            final int itemId = item.getItemId();
+            if (itemId == R.id.nav_home) {
+                startActivity(new Intent(this, HomeActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_map) {
+                return true;
+            } else if (itemId == R.id.nav_history) {
+                // Handle history navigation
+                return true;
+            } else if (itemId == R.id.nav_profile) {
+                // Handle profile navigation
+                return true;
+            }
+            return false;
+        });
+    }
+
 
     private void initializeViews() {
         // Bottom sheet
