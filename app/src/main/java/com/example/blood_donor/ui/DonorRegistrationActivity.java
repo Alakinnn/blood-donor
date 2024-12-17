@@ -2,6 +2,7 @@ package com.example.blood_donor.ui;
 
 import android.app.DatePickerDialog;
 import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,6 +15,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.blood_donor.R;
+import com.example.blood_donor.server.dto.auth.AuthResponse;
 import com.example.blood_donor.server.dto.auth.DonorRegisterRequest;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.interfaces.IUserService;
@@ -127,21 +129,24 @@ public class DonorRegistrationActivity extends AppCompatActivity {
             // Validate before starting background task
             request.validate();
 
-            // Execute registration in background
             executorService.execute(() -> {
+                SQLiteDatabase db = null;
                 try {
                     ApiResponse<?> response = userService.registerDonor(request);
 
-                    // Handle response on main thread
                     mainHandler.post(() -> {
                         try {
                             if (response.isSuccess()) {
-                                Log.d(TAG, "Registration successful");
-                                Toast.makeText(this, "Registration successful", Toast.LENGTH_SHORT).show();
+                                AuthResponse authResponse = (AuthResponse) response.getData();
+                                AuthManager.getInstance().saveAuthToken(
+                                        authResponse.getToken(),
+                                        authResponse.getUser().getUserId(),
+                                        authResponse.getUser().getUserType(),
+                                        authResponse.getUser().getFullName()
+                                );
                                 AuthManager.getInstance().navigateToAppropriateScreen(this);
                                 finish();
                             } else {
-                                Log.e(TAG, "Registration failed: " + response.getMessage());
                                 Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
                             }
                         } catch (Exception e) {
@@ -157,6 +162,14 @@ public class DonorRegistrationActivity extends AppCompatActivity {
                         Toast.makeText(this, "Registration failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         setLoading(false);
                     });
+                } finally {
+                    if (db != null) {
+                        try {
+                            db.close();
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error closing database", e);
+                        }
+                    }
                 }
             });
         } catch (Exception e) {

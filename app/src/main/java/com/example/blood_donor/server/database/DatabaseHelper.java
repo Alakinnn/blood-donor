@@ -129,6 +129,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public synchronized SQLiteDatabase openDatabase() throws AppException {
         try {
+            // Wait for up to 5 seconds to get a connection
+            long startTime = System.currentTimeMillis();
+            while (mOpenCounter.get() > 0 && System.currentTimeMillis() - startTime < 5000) {
+                Thread.sleep(100);
+            }
+
             if (mOpenCounter.incrementAndGet() == 1) {
                 synchronized (dbLock) {
                     if (mDatabase == null || !mDatabase.isOpen()) {
@@ -137,7 +143,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 }
             }
             return mDatabase;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             mOpenCounter.decrementAndGet();
             throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to open database: " + e.getMessage());
         }

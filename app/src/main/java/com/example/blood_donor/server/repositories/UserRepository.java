@@ -62,15 +62,8 @@ public class UserRepository implements IUserRepository {
                     null, null, null
             );
 
-            if (cursor != null && cursor.moveToFirst()) {
-                Log.d("UserRepository", "User created successfully: " + user.getEmail());
-                db.setTransactionSuccessful();
-                return Optional.of(user);
-            } else {
-                Log.e("UserRepository", "User not found after creation: " + user.getEmail());
-                throw new AppException(ErrorCode.DATABASE_ERROR, "User creation verification failed");
-            }
-
+            db.setTransactionSuccessful();
+            return Optional.of(user);
         } catch (SQLiteException e) {
             Log.e("UserRepository", "Database error creating user: " + e.getMessage());
             throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
@@ -79,7 +72,12 @@ public class UserRepository implements IUserRepository {
                 cursor.close();
             }
             if (db != null) {
-                db.endTransaction();
+                try {
+                    db.endTransaction();
+                    db.close();
+                } catch (Exception e) {
+                    Log.e("UserRepository", "Error closing database", e);
+                }
             }
         }
     }

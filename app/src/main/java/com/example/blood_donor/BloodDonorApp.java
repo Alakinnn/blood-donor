@@ -15,6 +15,7 @@ public class BloodDonorApp extends Application {
     public void onCreate() {
         super.onCreate();
         ServiceLocator.init(this);
+        initializeApp();
     }
 
     private void initializeApp() {

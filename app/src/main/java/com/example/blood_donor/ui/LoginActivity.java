@@ -8,6 +8,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.blood_donor.R;
+import com.example.blood_donor.server.dto.auth.AuthResponse;
 import com.example.blood_donor.server.dto.auth.LoginRequest;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.interfaces.IUserService;
@@ -77,6 +78,14 @@ public class LoginActivity extends AppCompatActivity {
             ApiResponse<?> response = userService.login(loginRequest);
 
             if (response.isSuccess()) {
+                // Save auth data before navigation
+                AuthResponse authResponse = (AuthResponse) response.getData();
+                AuthManager.getInstance().saveAuthToken(
+                        authResponse.getToken(),
+                        authResponse.getUser().getUserId(),
+                        authResponse.getUser().getUserType(),
+                        authResponse.getUser().getFullName()
+                );
                 AuthManager.getInstance().navigateToAppropriateScreen(this);
                 finish();
             } else {
