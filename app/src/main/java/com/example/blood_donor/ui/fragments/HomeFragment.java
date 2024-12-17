@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -55,8 +56,13 @@ public class HomeFragment extends Fragment {
         setupFunFactsCarousel();
         setupEventList();
         setupSearch();
-        loadUserName();
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        loadUserName(); // Call it here instead of in onCreateView
     }
 
     private void initializeViews(View view) {
@@ -104,9 +110,11 @@ public class HomeFragment extends Fragment {
         // Implement search functionality
     }
 
+
     private void loadUserName() {
         String userName = AuthManager.getInstance().getUserName();
-        TextView headerText = getView().findViewById(R.id.headerText);
+        // Use findViewById on the View obtained from onCreateView
+        TextView headerText = requireView().findViewById(R.id.headerText);
         headerText.setText(getString(R.string.hello_user, userName));
     }
 
