@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import android.util.Log;
 
 import com.example.blood_donor.server.database.DatabaseHelper;
 import com.example.blood_donor.server.errors.AppException;
@@ -27,6 +28,7 @@ public class UserRepository implements IUserRepository {
     @Override
     public Optional<User> createUser(User user) throws AppException {
         SQLiteDatabase db = null;
+        Cursor cursor = null;
         try {
             db = dbHelper.getWritableDatabase();
             db.beginTransaction();
@@ -47,15 +49,35 @@ public class UserRepository implements IUserRepository {
             long result = db.insert(TABLE_USERS, null, values);
 
             if (result == -1) {
+                Log.e("UserRepository", "Failed to insert user: " + user.getEmail());
                 throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to create user");
             }
 
-            db.setTransactionSuccessful();
-            return Optional.of(user);
+            // Verify user was created
+            cursor = db.query(
+                    TABLE_USERS,
+                    null,
+                    "email = ?",
+                    new String[]{user.getEmail()},
+                    null, null, null
+            );
+
+            if (cursor != null && cursor.moveToFirst()) {
+                Log.d("UserRepository", "User created successfully: " + user.getEmail());
+                db.setTransactionSuccessful();
+                return Optional.of(user);
+            } else {
+                Log.e("UserRepository", "User not found after creation: " + user.getEmail());
+                throw new AppException(ErrorCode.DATABASE_ERROR, "User creation verification failed");
+            }
 
         } catch (SQLiteException e) {
+            Log.e("UserRepository", "Database error creating user: " + e.getMessage());
             throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
         } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
             if (db != null) {
                 db.endTransaction();
             }

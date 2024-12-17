@@ -2,6 +2,7 @@ package com.example.blood_donor.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,6 +11,7 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.auth.LoginRequest;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.interfaces.IUserService;
+import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -71,15 +73,22 @@ public class LoginActivity extends AppCompatActivity {
         loginRequest.setEmail(email);
         loginRequest.setPassword(password);
 
-        ApiResponse<?> response = userService.login(loginRequest);
+        try {
+            ApiResponse<?> response = userService.login(loginRequest);
 
-        if (response.isSuccess()) {
-            Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        } else {
-            Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
+            if (response.isSuccess()) {
+                AuthManager.getInstance().navigateToAppropriateScreen(this);
+                finish();
+            } else {
+                String errorMsg = response.getMessage() != null ?
+                        response.getMessage() : "Login failed. Please try again.";
+                Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
+                Log.e("LoginActivity", "Login failed: " + errorMsg);
+            }
+        } catch (Exception e) {
+            Log.e("LoginActivity", "Login error: " + e.getMessage());
+            Toast.makeText(this, "An error occurred. Please try again.",
+                    Toast.LENGTH_SHORT).show();
         }
     }
 }

@@ -8,6 +8,8 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -29,10 +31,12 @@ import java.util.Arrays;
 import java.util.List;
 
 public class HomeFragment extends Fragment {
+    private View rootView;
     private ViewPager2 funFactsCarousel;
     private RecyclerView eventList;
     private TextInputLayout searchLayout;
     private View filterContainer;
+    private TextView headerText;
     private EventAdapter eventAdapter;
     private boolean isLoading = false;
     private final EventService eventService;
@@ -50,20 +54,26 @@ public class HomeFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_home, container, false);
-        initializeViews(view);
+        rootView = inflater.inflate(R.layout.fragment_home, container, false);
+        return rootView;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        initializeViews();
         setupFunFactsCarousel();
         setupEventList();
         setupSearch();
         loadUserName();
-        return view;
     }
 
-    private void initializeViews(View view) {
-        funFactsCarousel = view.findViewById(R.id.funFactsCarousel);
-        eventList = view.findViewById(R.id.eventList);
-        searchLayout = view.findViewById(R.id.searchLayout);
-        filterContainer = view.findViewById(R.id.filterContainer);
+    private void initializeViews() {
+        funFactsCarousel = rootView.findViewById(R.id.funFactsCarousel);
+        eventList = rootView.findViewById(R.id.eventList);
+        searchLayout = rootView.findViewById(R.id.searchLayout);
+        filterContainer = rootView.findViewById(R.id.filterContainer);
+        headerText = rootView.findViewById(R.id.headerText);
 
         searchLayout.setEndIconOnClickListener(v ->
                 filterContainer.setVisibility(
@@ -106,8 +116,9 @@ public class HomeFragment extends Fragment {
 
     private void loadUserName() {
         String userName = AuthManager.getInstance().getUserName();
-        TextView headerText = getView().findViewById(R.id.headerText);
-        headerText.setText(getString(R.string.hello_user, userName));
+        if (headerText != null) {
+            headerText.setText(getString(R.string.hello_user, userName));
+        }
     }
 
     private void loadMoreEvents(int page) {
@@ -115,24 +126,24 @@ public class HomeFragment extends Fragment {
         isLoading = true;
 
         EventQueryDTO query = new EventQueryDTO(
-                null, // latitude
-                null, // longitude
-                null, // zoomLevel
-                searchLayout.getEditText().getText().toString(), // searchTerm
-                null, // bloodTypes - implement filter later
-                "date", // sortBy
-                "desc", // sortOrder
-                page + 1, // page number
-                PAGE_SIZE // pageSize
+                null,
+                null,
+                null,
+                searchLayout.getEditText().getText().toString(),
+                null,
+                "date",
+                "desc",
+                page + 1,
+                PAGE_SIZE
         );
 
         ApiResponse<List<EventSummaryDTO>> response = eventService.getEventSummaries(query);
-        if (response.isSuccess() && response.getData() != null) {
+        if (response.isSuccess() && response.getData() != null && isAdded()) {
             requireActivity().runOnUiThread(() -> {
                 eventAdapter.addEvents(response.getData());
                 isLoading = false;
             });
-        } else {
+        } else if (isAdded()) {
             requireActivity().runOnUiThread(() -> {
                 Toast.makeText(getContext(), "Error loading events", Toast.LENGTH_SHORT).show();
                 isLoading = false;
@@ -150,7 +161,7 @@ public class HomeFragment extends Fragment {
         }
 
         @Override
-        public void onScrolled(RecyclerView view, int dx, int dy) {
+        public void onScrolled(@NonNull RecyclerView view, int dx, int dy) {
             int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
             int totalItemCount = layoutManager.getItemCount();
 
