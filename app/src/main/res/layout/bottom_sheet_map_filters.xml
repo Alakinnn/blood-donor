@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Filter Events"
+        android:textAppearance="?attr/textAppearanceHeadline6"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Blood Types Needed"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/blood_type_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleSelection="false">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_a_pos"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="A+" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_a_neg"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="A-" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_b_pos"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="B+" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_b_neg"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="B-" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_ab_pos"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AB+" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_ab_neg"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AB-" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_o_pos"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="O+" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_o_neg"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="O-" />
+
+    </com.google.android.material.chip.ChipGroup>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Date Range"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.slider.RangeSlider
+        android:id="@+id/date_range_slider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:valueFrom="0"
+        android:valueTo="30"
+        app:values="@array/initial_range"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Distance (km)"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.slider.Slider
+        android:id="@+id/distance_slider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:valueFrom="1"
+        android:valueTo="50"
+        android:value="10"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Event Status"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/status_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleSelection="false">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/status_upcoming"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Upcoming" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/status_in_progress"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="In Progress" />
+
+    </com.google.android.material.chip.ChipGroup>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/apply_filters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Apply Filters"/>
+
+</LinearLayout>

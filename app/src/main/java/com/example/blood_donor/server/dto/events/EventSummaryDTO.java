@@ -14,7 +14,14 @@ public class EventSummaryDTO {
     private double currentBloodCollected;
     private double distance;
     private List<BloodTypeProgress> bloodProgress;
-    private double totalProgress;
+    private double totalProgress;private String address;
+    private int registeredDonors;
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public int getRegisteredDonors() { return registeredDonors; }
+    public void setRegisteredDonors(int registeredDonors) { this.registeredDonors = registeredDonors; }
 
     public String getEventId() {
         return eventId;

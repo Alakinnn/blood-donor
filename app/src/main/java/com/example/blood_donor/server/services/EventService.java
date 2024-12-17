@@ -5,6 +5,7 @@ import android.os.Build;
 import com.example.blood_donor.server.dto.events.BloodTypeProgress;
 import com.example.blood_donor.server.dto.events.CreateEventDTO;
 import com.example.blood_donor.server.dto.events.EventDetailDTO;
+import com.example.blood_donor.server.dto.events.EventMarkerDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.errors.AppException;
@@ -250,6 +251,38 @@ public class EventService implements IEventService {
                     .collect(Collectors.toList());
 
             return ApiResponse.success(summaries);
+        } catch (Exception e) {
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    public ApiResponse<List<EventMarkerDTO>> getEventMarkers(EventQueryDTO query) {
+        try {
+            // First get the event summaries
+            ApiResponse<List<EventSummaryDTO>> response = getEventSummaries(query);
+
+            if (!response.isSuccess()) {
+                return ApiResponse.error(response.getErrorCode(), response.getMessage());
+            }
+
+            // Convert EventSummaryDTO to EventMarkerDTO
+            List<EventMarkerDTO> markers = response.getData().stream()
+                    .map(event -> new EventMarkerDTO(
+                            event.getEventId(),
+                            event.getTitle(),
+                            event.getAddress(),
+                            event.getStartTime(),
+                            event.getEndTime(),
+                            event.getRequiredBloodTypes(),
+                            event.getBloodGoal(),
+                            event.getCurrentBloodCollected(),
+                            event.getRegisteredDonors(),
+                            event.getLatitude(),
+                            event.getLongitude()
+                    ))
+                    .collect(Collectors.toList());
+
+            return ApiResponse.success(markers);
         } catch (Exception e) {
             return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
         }
