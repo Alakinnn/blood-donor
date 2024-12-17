@@ -14,6 +14,7 @@ import com.example.blood_donor.server.repositories.RegistrationRepository;
 import com.example.blood_donor.server.repositories.SessionRepository;
 import com.example.blood_donor.server.repositories.UserRepository;
 import com.example.blood_donor.server.services.AuthService;
+import com.example.blood_donor.server.services.DonationRegistrationService;
 import com.example.blood_donor.server.services.EventCacheService;
 import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.server.services.ManagerService;
@@ -33,6 +34,7 @@ public class ServiceLocator {
     private static EventService eventService;
     private static IEventRepository eventRepository;
     private static ILocationRepository locationRepository;
+    private static DonationRegistrationService donationRegistrationService;
 
     public static void init(Context context) {
         applicationContext = context.getApplicationContext();
@@ -44,6 +46,17 @@ public class ServiceLocator {
             throw new IllegalStateException("ServiceLocator must be initialized first");
         }
         return databaseHelper;
+    }
+
+    public static synchronized DonationRegistrationService getDonationRegistrationService() {
+        if (donationRegistrationService == null) {
+            donationRegistrationService = new DonationRegistrationService(
+                    getRegistrationRepository(),
+                    getUserRepository(),
+                    getEventRepository()
+            );
+        }
+        return donationRegistrationService;
     }
 
     public static synchronized ManagerService getManagerService() {

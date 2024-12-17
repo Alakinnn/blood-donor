@@ -1,9 +1,11 @@
 package com.example.blood_donor.ui;
 
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -11,10 +13,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.blood_donor.R;
+import com.example.blood_donor.server.dto.events.EventSummaryDTO;
+import com.example.blood_donor.server.dto.locations.EventQueryDTO;
+import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.models.user.UserType;
+import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.ui.adapters.EventAdapter;
 import com.example.blood_donor.ui.adapters.FunFactAdapter;
 import com.example.blood_donor.ui.manager.AuthManager;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -29,6 +36,14 @@ public class HomeActivity extends AppCompatActivity {
     private BottomNavigationView bottomNavigation;
     private com.example.blood_donor.ui.adapters.EventAdapter eventAdapter;
     private boolean isManager;
+
+    private static final int PAGE_SIZE = 20; // Remove the import for MifareUltralight.PAGE_SIZE
+    private boolean isLoading = false;
+    private final EventService eventService;
+
+    public HomeActivity() {
+        this.eventService = ServiceLocator.getEventService(); // Replace static import
+    }
 
     private final List<String> funFacts = Arrays.asList(
             "One donation can save up to three lives",
@@ -76,7 +91,12 @@ public class HomeActivity extends AppCompatActivity {
         eventList.setLayoutManager(new LinearLayoutManager(this));
         eventList.setAdapter(eventAdapter);
 
-        // Implement endless scrolling
+        eventAdapter.setOnEventClickListener(event -> {
+            Intent intent = new Intent(this, EventDetailsActivity.class);
+            intent.putExtra("eventId", event.getEventId());
+            startActivity(intent);
+        });
+
         EndlessRecyclerViewScrollListener scrollListener =
                 new EndlessRecyclerViewScrollListener(
                         (LinearLayoutManager) eventList.getLayoutManager()
@@ -88,7 +108,6 @@ public class HomeActivity extends AppCompatActivity {
                 };
         eventList.addOnScrollListener(scrollListener);
 
-        // Load initial events
         loadMoreEvents(0);
     }
 
@@ -120,7 +139,35 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private void loadMoreEvents(int page) {
-        // Implement pagination loading
+        if (isLoading) return;
+        isLoading = true;
+
+        // Create query
+        EventQueryDTO query = new EventQueryDTO(
+                null, // latitude
+                null, // longitude
+                null, // zoomLevel
+                searchLayout.getEditText().getText().toString(), // searchTerm
+                null, // bloodTypes - implement filter later
+                "date", // sortBy
+                "desc", // sortOrder
+                page + 1, // page number
+                PAGE_SIZE // pageSize
+        );
+
+        // Load events
+        ApiResponse<List<EventSummaryDTO>> response = eventService.getEventSummaries(query);
+        if (response.isSuccess() && response.getData() != null) {
+            runOnUiThread(() -> {
+                eventAdapter.addEvents(response.getData());
+                isLoading = false;
+            });
+        } else {
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Error loading events", Toast.LENGTH_SHORT).show();
+                isLoading = false;
+            });
+        }
     }
 
     private static abstract class EndlessRecyclerViewScrollListener

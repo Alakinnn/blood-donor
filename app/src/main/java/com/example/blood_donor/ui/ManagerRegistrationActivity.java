@@ -1,6 +1,7 @@
 package com.example.blood_donor.ui;
 
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
@@ -115,6 +116,10 @@ public class ManagerRegistrationActivity extends AppCompatActivity {
         ApiResponse<?> response = userService.registerManager(request);
         if (response.isSuccess()) {
             Toast.makeText(this, "Registration successful", Toast.LENGTH_SHORT).show();
+            // Start HomeActivity and clear previous activities
+            Intent intent = new Intent(ManagerRegistrationActivity.this, HomeActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
             finish();
         } else {
             Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
