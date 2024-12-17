@@ -46,6 +46,10 @@
             android:name=".ui.ManagerRegistrationActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.EventDetailsActivity"
+            android:exported="false" />
+
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyA43zL-eCLBF-VMf3CpRy72McRYbEEQ564" />

@@ -21,9 +21,9 @@ public class DatabaseSeeder {
     private final Random random = new Random();
 
     // Sydney area coordinates
-    private static final double BASE_LAT = -33.8688;
-    private static final double BASE_LNG = 151.2093;
-    private static final double COORD_SPREAD = 0.1;
+    private static final double BASE_LAT = 37.3669;
+    private static final double BASE_LNG = -122.0847;
+    private static final double COORD_SPREAD = 0.05;
 
     // Test data arrays
     private static final String[] MANAGER_NAMES = {
@@ -56,17 +56,12 @@ public class DatabaseSeeder {
             "Help maintain our community's blood supply."
     };
 
-    private static final String[] SYDNEY_ADDRESSES = {
-            "123 George Street, Sydney NSW 2000",
-            "456 Pitt Street, Sydney NSW 2000",
-            "789 Elizabeth Street, Surry Hills NSW 2010",
-            "321 Oxford Street, Paddington NSW 2021",
-            "654 Crown Street, Surry Hills NSW 2010",
-            "987 Military Road, Mosman NSW 2088",
-            "147 King Street, Newtown NSW 2042",
-            "258 Victoria Street, Darlinghurst NSW 2010",
-            "369 Anzac Parade, Kingsford NSW 2032",
-            "741 Pacific Highway, Chatswood NSW 2067"
+    private static final String[] NEARBY_ADDRESSES = {
+            "615 Cuesta Dr, Mountain View, CA 94040", // Cuesta Park
+            "1701 Rock St, Mountain View, CA 94043", // El Camino Hospital
+            "2025 Grant Rd, Mountain View, CA 94040", // Grant Park Plaza
+            "201 S Rengstorff Ave, Mountain View, CA 94040", // Rengstorff Park
+            "1500 Miramonte Ave, Mountain View, CA 94040" // Los Altos High School
     };
 
     public DatabaseSeeder(DatabaseHelper dbHelper) {
@@ -78,14 +73,13 @@ public class DatabaseSeeder {
         try {
             db.beginTransaction();
 
+            createTestAccounts(db);
+
             // Create test managers
             String[] managerIds = createTestManagers(db);
 
             // Create test events
             createTestEvents(db, managerIds);
-
-            // Create test registrations
-            createTestRegistrations(db);
 
             db.setTransactionSuccessful();
         } catch (Exception e) {
@@ -121,7 +115,7 @@ public class DatabaseSeeder {
     }
 
     private void createTestEvents(SQLiteDatabase db, String[] managerIds) {
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 5; i++) {
             // Create location
             String locationId = UUID.randomUUID().toString();
             double lat = BASE_LAT + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
@@ -129,7 +123,7 @@ public class DatabaseSeeder {
 
             ContentValues locationValues = new ContentValues();
             locationValues.put("id", locationId);
-            locationValues.put("address", SYDNEY_ADDRESSES[random.nextInt(SYDNEY_ADDRESSES.length)]);
+            locationValues.put("address", NEARBY_ADDRESSES[random.nextInt(NEARBY_ADDRESSES.length)]);
             locationValues.put("latitude", lat);
             locationValues.put("longitude", lng);
             locationValues.put("description", "Floor " + (random.nextInt(5) + 1));
@@ -184,5 +178,23 @@ public class DatabaseSeeder {
     private void createTestRegistrations(SQLiteDatabase db) {
         // Create some dummy registrations for events
         // This could be expanded based on your needs
+    }
+
+    private void createTestAccounts(SQLiteDatabase db) {
+        // Create test donor account
+        String testUserId = UUID.randomUUID().toString();
+        ContentValues values = new ContentValues();
+        values.put("id", testUserId);
+        values.put("email", "test@gmail.com");
+        values.put("password", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"); // Encrypted "test123@"
+        values.put("full_name", "Test Donor");
+        values.put("date_of_birth", System.currentTimeMillis() - (25L * 365 * 24 * 60 * 60 * 1000)); // 25 years old
+        values.put("blood_type", "O+");
+        values.put("user_type", UserType.DONOR.name());
+        values.put("gender", "Other");
+        values.put("created_at", System.currentTimeMillis());
+        values.put("updated_at", System.currentTimeMillis());
+
+        db.insert("users", null, values);
     }
 }
