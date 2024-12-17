@@ -1,7 +1,12 @@
 package com.example.blood_donor.ui.manager;
+
+import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 
 import com.example.blood_donor.server.models.user.UserType;
+import com.example.blood_donor.ui.BaseActivity;
+import com.example.blood_donor.ui.LoginActivity;
 
 public class AuthManager {
     private static volatile AuthManager instance;
@@ -68,5 +73,24 @@ public class AuthManager {
 
     public String getUserName() {
         return prefs.getString(KEY_USER_NAME, "");
+    }
+
+    public void navigateToAppropriateScreen(Context context) {
+        Intent intent;
+        if (isLoggedIn()) {
+            // If logged in, go to BaseActivity (which contains all our fragments)
+            intent = new Intent(context, BaseActivity.class);
+        } else {
+            // If not logged in, go to LoginActivity
+            intent = new Intent(context, LoginActivity.class);
+        }
+        // Clear back stack and start fresh
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        context.startActivity(intent);
+    }
+
+    public void logout(Context context) {
+        clearAuth();
+        navigateToAppropriateScreen(context);
     }
 }

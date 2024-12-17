@@ -31,16 +31,16 @@ public class IntroSliderActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_intro_slider);
 
+        // Check if intro slider has been shown before
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-
         if (!isFirstTime()) {
-            navigateToNextScreen();
+            navigateToAppropriateScreen();
             finish();
             return;
         }
 
+        setContentView(R.layout.activity_intro_slider);
         initViews();
         setupViewPager();
         setupButtons();
@@ -60,6 +60,19 @@ public class IntroSliderActivity extends AppCompatActivity {
         setupDots(0);
     }
 
+    private boolean isFirstTime() {
+        return prefs.getBoolean(IS_FIRST_TIME, true);
+    }
+
+    private void markAsShown() {
+        prefs.edit().putBoolean(IS_FIRST_TIME, false).apply();
+    }
+
+    private void navigateToAppropriateScreen() {
+        // Use AuthManager to handle navigation
+        AuthManager.getInstance().navigateToAppropriateScreen(this);
+    }
+
     private void setupButtons() {
         btnNext.setOnClickListener(v -> {
             int current = viewPager.getCurrentItem();
@@ -67,13 +80,13 @@ public class IntroSliderActivity extends AppCompatActivity {
                 viewPager.setCurrentItem(current + 1);
             } else {
                 markAsShown();
-                navigateToNextScreen();
+                navigateToAppropriateScreen();
             }
         });
 
         btnSkip.setOnClickListener(v -> {
             markAsShown();
-            navigateToNextScreen();
+            navigateToAppropriateScreen();
         });
     }
 
@@ -110,14 +123,6 @@ public class IntroSliderActivity extends AppCompatActivity {
             params.setMargins(8, 0, 8, 0);
             layoutDots.addView(dots[i], params);
         }
-    }
-
-    private boolean isFirstTime() {
-        return prefs.getBoolean(IS_FIRST_TIME, true);
-    }
-
-    private void markAsShown() {
-        prefs.edit().putBoolean(IS_FIRST_TIME, false).apply();
     }
 
     private void navigateToNextScreen() {

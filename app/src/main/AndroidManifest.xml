@@ -18,48 +18,37 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BloodDonor"
         tools:targetApi="31">
-        <activity
-            android:name=".ui.MapActivity"
-            android:exported="false"
-            android:theme="@style/Theme.BloodDonor.Immersive"/>
-        <activity
-            android:name=".ui.EventDetailsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.BloodDonor.Immersive"/>
-        <activity
-            android:name=".ui.HomeActivity"
-            android:exported="false"
-            android:theme="@style/Theme.BloodDonor.Immersive"/>
+
         <activity
             android:name=".ui.IntroSliderActivity"
             android:exported="true"
             android:theme="@style/Theme.BloodDonor.Immersive">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.BaseActivity"
             android:exported="false"
-            android:launchMode="singleTop"
-            android:theme="@style/Theme.BloodDonor.Immersive"/>
+            android:launchMode="singleTask" />
+
         <activity
             android:name=".ui.LoginActivity"
-            android:exported="false"
-            android:theme="@style/Theme.BloodDonor.Immersive"/>
+            android:exported="false" />
+
         <activity
             android:name=".ui.DonorRegistrationActivity"
-            android:exported="false"
-            android:theme="@style/Theme.BloodDonor.Immersive"/>
+            android:exported="false" />
+
         <activity
             android:name=".ui.ManagerRegistrationActivity"
-            android:exported="false"
-            android:theme="@style/Theme.BloodDonor.Immersive"/>
+            android:exported="false" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyA43zL-eCLBF-VMf3CpRy72McRYbEEQ564" />
     </application>
+
 </manifest>

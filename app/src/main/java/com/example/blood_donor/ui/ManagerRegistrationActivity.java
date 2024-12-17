@@ -17,6 +17,7 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.auth.ManagerRegisterRequest;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.interfaces.IUserService;
+import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -116,13 +117,11 @@ public class ManagerRegistrationActivity extends AppCompatActivity {
         ApiResponse<?> response = userService.registerManager(request);
         if (response.isSuccess()) {
             Toast.makeText(this, "Registration successful", Toast.LENGTH_SHORT).show();
-            // Start HomeActivity and clear previous activities
-            Intent intent = new Intent(ManagerRegistrationActivity.this, HomeActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
+            AuthManager.getInstance().navigateToAppropriateScreen(this);
             finish();
         } else {
             Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
         }
+
     }
 }
