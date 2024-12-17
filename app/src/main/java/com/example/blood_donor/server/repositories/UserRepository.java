@@ -30,7 +30,7 @@ public class UserRepository implements IUserRepository {
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
-            db = dbHelper.getWritableDatabase();
+            db = dbHelper.getWritableDatabaseWithRetry();
             db.beginTransaction();
 
             ContentValues values = new ContentValues();

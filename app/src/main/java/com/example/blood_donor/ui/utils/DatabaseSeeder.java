@@ -12,8 +12,10 @@ import org.json.JSONObject;
 
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 public class DatabaseSeeder {
@@ -23,7 +25,9 @@ public class DatabaseSeeder {
     // Sydney area coordinates
     private static final double BASE_LAT = -33.8688;
     private static final double BASE_LNG = 151.2093;
-    private static final double COORD_SPREAD = 0.1;
+    private static final double COORD_SPREAD = 0.05;
+    private static final double CUESTA_LAT = 37.3508;
+    private static final double CUESTA_LNG = -122.0858;
 
     // Test data arrays
     private static final String[] MANAGER_NAMES = {
@@ -78,14 +82,18 @@ public class DatabaseSeeder {
         try {
             db.beginTransaction();
 
-            // Create test managers
+            // Clear existing test data
+            db.delete("events", null, null);
+            db.delete("locations", null, null);
+
+            // Create test managers first
             String[] managerIds = createTestManagers(db);
 
-            // Create test events
-            createTestEvents(db, managerIds);
+            // Create Cuesta Park event first
+            createCuestaParkEvent(db, managerIds[0]);
 
-            // Create test registrations
-            createTestRegistrations(db);
+            // Create other events
+            createTestEvents(db, managerIds, 15); // Reduced number of events
 
             db.setTransactionSuccessful();
         } catch (Exception e) {
@@ -120,16 +128,44 @@ public class DatabaseSeeder {
         return managerIds;
     }
 
-    private void createTestEvents(SQLiteDatabase db, String[] managerIds) {
-        for (int i = 0; i < 30; i++) {
-            // Create location
-            String locationId = UUID.randomUUID().toString();
-            double lat = BASE_LAT + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
-            double lng = BASE_LNG + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
+    private void createCuestaParkEvent(SQLiteDatabase db, String managerId) {
+        // Create location
+        String locationId = UUID.randomUUID().toString();
+        ContentValues locationValues = new ContentValues();
+        locationValues.put("id", locationId);
+        locationValues.put("address", "615 Cuesta Dr, Mountain View, CA 94040");
+        locationValues.put("latitude", CUESTA_LAT);
+        locationValues.put("longitude", CUESTA_LNG);
+        locationValues.put("description", "Main Community Center");
+        locationValues.put("created_at", System.currentTimeMillis());
+        locationValues.put("updated_at", System.currentTimeMillis());
 
+        db.insert("locations", null, locationValues);
+
+        // Create event
+        createEventForLocation(db, locationId, managerId, "Cuesta Park Community Blood Drive",
+                "Join us for this important community blood drive at Cuesta Park. All blood types needed!");
+    }
+
+    private void createTestEvents(SQLiteDatabase db, String[] managerIds, int count) {
+        Set<String> usedAddresses = new HashSet<>();
+
+        for (int i = 0; i < count; i++) {
+            // Get unique address
+            String address;
+            do {
+                address = SYDNEY_ADDRESSES[random.nextInt(SYDNEY_ADDRESSES.length)];
+            } while (usedAddresses.contains(address));
+            usedAddresses.add(address);
+
+            String locationId = UUID.randomUUID().toString();
+            double lat = CUESTA_LAT + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
+            double lng = CUESTA_LNG + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
+
+            // Create location and event
             ContentValues locationValues = new ContentValues();
             locationValues.put("id", locationId);
-            locationValues.put("address", SYDNEY_ADDRESSES[random.nextInt(SYDNEY_ADDRESSES.length)]);
+            locationValues.put("address", address);
             locationValues.put("latitude", lat);
             locationValues.put("longitude", lng);
             locationValues.put("description", "Floor " + (random.nextInt(5) + 1));
@@ -139,38 +175,10 @@ public class DatabaseSeeder {
             db.insert("locations", null, locationValues);
 
             // Create event
-            String eventId = UUID.randomUUID().toString();
-            Calendar startTime = Calendar.getInstance();
-            startTime.add(Calendar.DAY_OF_MONTH, random.nextInt(30) - 15); // Events from -15 to +15 days
-            Calendar endTime = (Calendar) startTime.clone();
-            endTime.add(Calendar.HOUR, 8);
-
-            // Create blood type targets
-            Map<String, Double> bloodTypeTargets = new HashMap<>();
-            bloodTypeTargets.put("A+", 10.0 + random.nextDouble() * 20.0);
-            bloodTypeTargets.put("O-", 15.0 + random.nextDouble() * 20.0);
-            bloodTypeTargets.put("B+", 8.0 + random.nextDouble() * 15.0);
-
-            // Create collected amounts (random percentage of targets)
-            Map<String, Double> bloodCollected = new HashMap<>();
-            bloodTypeTargets.forEach((type, target) ->
-                    bloodCollected.put(type, target * random.nextDouble()));
-
-            ContentValues eventValues = new ContentValues();
-            eventValues.put("id", eventId);
-            eventValues.put("title", EVENT_TITLES[random.nextInt(EVENT_TITLES.length)]);
-            eventValues.put("description", EVENT_DESCRIPTIONS[random.nextInt(EVENT_DESCRIPTIONS.length)]);
-            eventValues.put("start_time", startTime.getTimeInMillis());
-            eventValues.put("end_time", endTime.getTimeInMillis());
-            eventValues.put("blood_type_targets", new JSONObject(bloodTypeTargets).toString());
-            eventValues.put("blood_collected", new JSONObject(bloodCollected).toString());
-            eventValues.put("host_id", managerIds[random.nextInt(managerIds.length)]);
-            eventValues.put("status", determineEventStatus(startTime.getTimeInMillis(), endTime.getTimeInMillis()));
-            eventValues.put("location_id", locationId);
-            eventValues.put("created_at", System.currentTimeMillis());
-            eventValues.put("updated_at", System.currentTimeMillis());
-
-            db.insert("events", null, eventValues);
+            createEventForLocation(db, locationId,
+                    managerIds[random.nextInt(managerIds.length)],
+                    EVENT_TITLES[random.nextInt(EVENT_TITLES.length)],
+                    EVENT_DESCRIPTIONS[random.nextInt(EVENT_DESCRIPTIONS.length)]);
         }
     }
 
@@ -184,5 +192,58 @@ public class DatabaseSeeder {
     private void createTestRegistrations(SQLiteDatabase db) {
         // Create some dummy registrations for events
         // This could be expanded based on your needs
+    }
+
+    private void createEventForLocation(SQLiteDatabase db, String locationId, String managerId,
+                                        String title, String description) {
+        String eventId = UUID.randomUUID().toString();
+
+        // Calculate event times
+        Calendar startTime = Calendar.getInstance();
+        startTime.add(Calendar.DAY_OF_MONTH, random.nextInt(30) - 15); // Events from -15 to +15 days
+        Calendar endTime = (Calendar) startTime.clone();
+        endTime.add(Calendar.HOUR, 8); // 8-hour events
+
+        // Create blood type targets (between 2-4 blood types needed per event)
+        Map<String, Double> bloodTypeTargets = new HashMap<>();
+        String[] bloodTypes = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
+        int numBloodTypes = random.nextInt(3) + 2; // 2-4 blood types
+
+        Set<String> usedBloodTypes = new HashSet<>();
+        for (int i = 0; i < numBloodTypes; i++) {
+            String bloodType;
+            do {
+                bloodType = bloodTypes[random.nextInt(bloodTypes.length)];
+            } while (usedBloodTypes.contains(bloodType));
+
+            usedBloodTypes.add(bloodType);
+            bloodTypeTargets.put(bloodType, 10.0 + random.nextDouble() * 20.0); // 10-30L target
+        }
+
+        // Create collected amounts (random percentage of targets)
+        Map<String, Double> bloodCollected = new HashMap<>();
+        bloodTypeTargets.forEach((type, target) -> {
+            // Collect between 0% and 100% of target
+            bloodCollected.put(type, target * random.nextDouble());
+        });
+
+        ContentValues eventValues = new ContentValues();
+        eventValues.put("id", eventId);
+        eventValues.put("title", title);
+        eventValues.put("description", description);
+        eventValues.put("start_time", startTime.getTimeInMillis());
+        eventValues.put("end_time", endTime.getTimeInMillis());
+        eventValues.put("blood_type_targets", new JSONObject(bloodTypeTargets).toString());
+        eventValues.put("blood_collected", new JSONObject(bloodCollected).toString());
+        eventValues.put("host_id", managerId);
+        eventValues.put("status", determineEventStatus(
+                startTime.getTimeInMillis(),
+                endTime.getTimeInMillis()
+        ));
+        eventValues.put("location_id", locationId);
+        eventValues.put("created_at", System.currentTimeMillis());
+        eventValues.put("updated_at", System.currentTimeMillis());
+
+        db.insert("events", null, eventValues);
     }
 }

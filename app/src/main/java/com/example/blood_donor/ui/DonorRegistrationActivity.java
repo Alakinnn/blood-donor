@@ -3,6 +3,10 @@ package com.example.blood_donor.ui;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Toast;
@@ -16,14 +20,18 @@ import com.example.blood_donor.server.services.interfaces.IUserService;
 import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textview.MaterialTextView;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class DonorRegistrationActivity extends AppCompatActivity {
+    private static final String TAG = "DonorRegistration";
     private TextInputEditText nameInput;
     private TextInputEditText emailInput;
     private TextInputEditText passwordInput;
@@ -32,14 +40,17 @@ public class DonorRegistrationActivity extends AppCompatActivity {
     private AutoCompleteTextView genderInput;
     private MaterialButton registerButton;
     private MaterialTextView loginLink;
+    private CircularProgressIndicator progressIndicator;
     private final Calendar calendar = Calendar.getInstance();
     private final IUserService userService;
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private static final String[] BLOOD_TYPES = new String[]{"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
     private static final String[] GENDERS = new String[]{"Male", "Female", "Other"};
 
     public DonorRegistrationActivity() {
-        this.userService = ServiceLocator.getUserService(); // We'll create this
+        this.userService = ServiceLocator.getUserService();
     }
 
     @Override
@@ -62,6 +73,7 @@ public class DonorRegistrationActivity extends AppCompatActivity {
         genderInput = findViewById(R.id.genderInput);
         registerButton = findViewById(R.id.registerButton);
         loginLink = findViewById(R.id.loginLink);
+        progressIndicator = findViewById(R.id.progressIndicator);
     }
 
     private void setupDropdowns() {
@@ -100,29 +112,85 @@ public class DonorRegistrationActivity extends AppCompatActivity {
     }
 
     private void handleRegistration() {
-        DonorRegisterRequest request = new DonorRegisterRequest();
-        request.setFullName(nameInput.getText().toString().trim());
-        request.setEmail(emailInput.getText().toString().trim());
-        request.setPassword(passwordInput.getText().toString().trim());
-        request.setDateOfBirth(calendar.getTimeInMillis());
-        request.setBloodType(bloodTypeInput.getText().toString());
-        request.setGender(genderInput.getText().toString());
-
         try {
+            // Disable inputs and show progress
+            setLoading(true);
+
+            DonorRegisterRequest request = new DonorRegisterRequest();
+            request.setFullName(nameInput.getText().toString().trim());
+            request.setEmail(emailInput.getText().toString().trim());
+            request.setPassword(passwordInput.getText().toString().trim());
+            request.setDateOfBirth(calendar.getTimeInMillis());
+            request.setBloodType(bloodTypeInput.getText().toString());
+            request.setGender(genderInput.getText().toString());
+
+            // Validate before starting background task
             request.validate();
+
+            // Execute registration in background
+            executorService.execute(() -> {
+                try {
+                    ApiResponse<?> response = userService.registerDonor(request);
+
+                    // Handle response on main thread
+                    mainHandler.post(() -> {
+                        try {
+                            if (response.isSuccess()) {
+                                Log.d(TAG, "Registration successful");
+                                Toast.makeText(this, "Registration successful", Toast.LENGTH_SHORT).show();
+                                AuthManager.getInstance().navigateToAppropriateScreen(this);
+                                finish();
+                            } else {
+                                Log.e(TAG, "Registration failed: " + response.getMessage());
+                                Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error handling registration response", e);
+                            Toast.makeText(this, "An unexpected error occurred", Toast.LENGTH_SHORT).show();
+                        } finally {
+                            setLoading(false);
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.e(TAG, "Error during registration", e);
+                    mainHandler.post(() -> {
+                        Toast.makeText(this, "Registration failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        setLoading(false);
+                    });
+                }
+            });
         } catch (Exception e) {
+            Log.e(TAG, "Validation error", e);
             Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
-            return;
+            setLoading(false);
         }
+    }
 
-        ApiResponse<?> response = userService.registerDonor(request);
-        if (response.isSuccess()) {
-            Toast.makeText(this, "Registration successful", Toast.LENGTH_SHORT).show();
-            AuthManager.getInstance().navigateToAppropriateScreen(this);
-            finish();
+    private void setLoading(boolean loading) {
+        if (loading) {
+            progressIndicator.setVisibility(View.VISIBLE);
+            registerButton.setEnabled(false);
+            nameInput.setEnabled(false);
+            emailInput.setEnabled(false);
+            passwordInput.setEnabled(false);
+            dobInput.setEnabled(false);
+            bloodTypeInput.setEnabled(false);
+            genderInput.setEnabled(false);
         } else {
-            Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
+            progressIndicator.setVisibility(View.GONE);
+            registerButton.setEnabled(true);
+            nameInput.setEnabled(true);
+            emailInput.setEnabled(true);
+            passwordInput.setEnabled(true);
+            dobInput.setEnabled(true);
+            bloodTypeInput.setEnabled(true);
+            genderInput.setEnabled(true);
         }
+    }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        executorService.shutdown();
     }
 }

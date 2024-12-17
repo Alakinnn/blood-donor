@@ -1,9 +1,12 @@
 package com.example.blood_donor.ui.fragments;
 
+import static android.content.ContentValues.TAG;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -101,35 +104,78 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
-        map = googleMap;
-        map.setOnCameraIdleListener(this::loadEventsInView);
-        map.setOnMarkerClickListener(this::onMarkerClick);
-        checkLocationPermission();
+        try {
+            map = googleMap;
+
+            // Set up UI settings
+            map.getUiSettings().setMapToolbarEnabled(false);
+            map.getUiSettings().setRotateGesturesEnabled(false);
+
+            // Handle map events
+            map.setOnCameraIdleListener(() -> {
+                try {
+                    loadEventsInView();
+                } catch (Exception e) {
+                    Log.e(TAG, "Error loading events", e);
+                }
+            });
+
+            map.setOnMarkerClickListener(marker -> {
+                try {
+                    return onMarkerClick(marker);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error handling marker click", e);
+                    return false;
+                }
+            });
+
+            // Disable right click/long press
+            map.setOnMapLongClickListener(null);
+
+            checkLocationPermission();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up map", e);
+        }
     }
 
-    // ... [Rest of the MapActivity logic remains the same, just change 'this' to 'requireActivity()'
-    // and make sure to use 'getContext()' instead of 'this' for context]
     private void loadEventsInView() {
         if (map == null) return;
+        try {
+            LatLng center = map.getCameraPosition().target;
+            float zoomLevel = map.getCameraPosition().zoom;
 
-        LatLng center = map.getCameraPosition().target;
-        float zoomLevel = map.getCameraPosition().zoom;
+            // Only load events if we're zoomed in enough
+            if (zoomLevel < 10) {
+                clearMarkers();
+                return;
+            }
 
-        EventQueryDTO query = new EventQueryDTO(
-                center.latitude,
-                center.longitude,
-                (double) zoomLevel,
-                null,
-                null,
-                "distance",
-                "asc",
-                1,
-                50
-        );
+            EventQueryDTO query = new EventQueryDTO(
+                    center.latitude,
+                    center.longitude,
+                    (double) zoomLevel,
+                    null,
+                    null,
+                    "distance",
+                    "asc",
+                    1,
+                    50
+            );
 
-        ApiResponse<List<EventMarkerDTO>> response = eventService.getEventMarkers(query);
-        if (response.isSuccess() && response.getData() != null) {
-            updateMarkers(response.getData());
+            ApiResponse<List<EventMarkerDTO>> response = eventService.getEventMarkers(query);
+            if (response.isSuccess() && response.getData() != null) {
+                updateMarkers(response.getData());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading events", e);
+        }
+    }
+
+    private void clearMarkers() {
+        if (map != null) {
+            map.clear();
+            markerEventMap.clear();
         }
     }
 

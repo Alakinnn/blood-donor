@@ -1,6 +1,9 @@
 package com.example.blood_donor.ui;
 
+import static android.content.ContentValues.TAG;
+
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -50,17 +53,27 @@ public class EventDetailsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_event_details);
+        try {
+            setContentView(R.layout.activity_event_details);
 
-        eventId = getIntent().getStringExtra("eventId");
-        if (eventId == null) {
-            Toast.makeText(this, "Invalid event", Toast.LENGTH_SHORT).show();
+            String eventId = getIntent().getStringExtra("eventId");
+            if (eventId == null) {
+                Log.e(TAG, "No eventId provided in intent");
+                Toast.makeText(this, "Invalid event", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+
+            Log.d(TAG, "Loading event details for ID: " + eventId);
+
+            initializeViews();
+            loadEventDetails();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCreate", e);
+            Toast.makeText(this, "An error occurred", Toast.LENGTH_SHORT).show();
             finish();
-            return;
         }
-
-        initializeViews();
-        loadEventDetails();
     }
 
     private void initializeViews() {
@@ -82,16 +95,23 @@ public class EventDetailsActivity extends AppCompatActivity {
     }
 
     private void loadEventDetails() {
-        String userId = AuthManager.getInstance().getUserId();
-        ApiResponse<EventDetailDTO> response =
-                eventService.getEventDetails(eventId, userId);
+        try {
+            String userId = AuthManager.getInstance().getUserId();
+            Log.d(TAG, "Fetching details with userId: " + userId);
 
-        if (response.isSuccess() && response.getData() != null) {
-            eventDetails = response.getData();
-            updateUI();
-        } else {
-            Toast.makeText(this, "Error loading event details",
-                    Toast.LENGTH_SHORT).show();
+            ApiResponse<EventDetailDTO> response = eventService.getEventDetails(eventId, userId);
+
+            if (response.isSuccess() && response.getData() != null) {
+                eventDetails = response.getData();
+                updateUI();
+            } else {
+                Log.e(TAG, "Failed to load event details: " + response.getMessage());
+                Toast.makeText(this, "Error loading event details", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading event details", e);
+            Toast.makeText(this, "Error loading event details", Toast.LENGTH_SHORT).show();
             finish();
         }
     }

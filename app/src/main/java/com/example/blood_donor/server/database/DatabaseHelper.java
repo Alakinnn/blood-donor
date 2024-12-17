@@ -14,6 +14,10 @@ import com.example.blood_donor.server.errors.ErrorCode;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "BloodDonor.db";
     private static final int DATABASE_VERSION = 1;
+    private final SQLiteDatabase.CursorFactory factory = null;
+    private SQLiteDatabase writeableDb;
+    private SQLiteDatabase readableDb;
+    private final Object dbLock = new Object();
 
     // Table Names
     public static final String TABLE_USERS = "users";
@@ -179,22 +183,76 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     // Helper method to get readable database with error handling
-    public SQLiteDatabase getReadableDatabaseWithException() throws AppException {
-        try {
-            return getReadableDatabase();
-        } catch (SQLiteException e) {
-            throw new AppException(ErrorCode.DATABASE_ERROR,
-                    "Could not open database for reading: " + e.getMessage());
+    public SQLiteDatabase getWritableDatabaseWithRetry() throws AppException {
+        synchronized (dbLock) {
+            int retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    if (writeableDb == null || !writeableDb.isOpen()) {
+                        writeableDb = getWritableDatabase();
+                    }
+                    return writeableDb;
+                } catch (SQLiteException e) {
+                    Log.e("DatabaseHelper", "Error getting writable database (attempt " + (retryCount + 1) + ")", e);
+                    retryCount++;
+                    if (writeableDb != null) {
+                        writeableDb.close();
+                        writeableDb = null;
+                    }
+                    // Wait before retry
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new AppException(ErrorCode.DATABASE_ERROR, "Database operation interrupted");
+                    }
+                }
+            }
+            throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to get writable database after retries");
         }
     }
 
-    // Helper method to get writable database with error handling
-    public SQLiteDatabase getWritableDatabaseWithException() throws AppException {
-        try {
-            return getWritableDatabase();
-        } catch (SQLiteException e) {
-            throw new AppException(ErrorCode.DATABASE_ERROR,
-                    "Could not open database for writing: " + e.getMessage());
+    public SQLiteDatabase getReadableDatabaseWithRetry() throws AppException {
+        synchronized (dbLock) {
+            int retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    if (readableDb == null || !readableDb.isOpen()) {
+                        readableDb = getReadableDatabase();
+                    }
+                    return readableDb;
+                } catch (SQLiteException e) {
+                    Log.e("DatabaseHelper", "Error getting readable database (attempt " + (retryCount + 1) + ")", e);
+                    retryCount++;
+                    if (readableDb != null) {
+                        readableDb.close();
+                        readableDb = null;
+                    }
+                    // Wait before retry
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new AppException(ErrorCode.DATABASE_ERROR, "Database operation interrupted");
+                    }
+                }
+            }
+            throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to get readable database after retries");
+        }
+    }
+
+    @Override
+    public void close() {
+        synchronized (dbLock) {
+            if (writeableDb != null) {
+                writeableDb.close();
+                writeableDb = null;
+            }
+            if (readableDb != null) {
+                readableDb.close();
+                readableDb = null;
+            }
+            super.close();
         }
     }
 
@@ -221,7 +279,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
-            db = getReadableDatabaseWithException();
+            db = getReadableDatabaseWithRetry();
             cursor = db.rawQuery("SELECT COUNT(*) FROM " + tableName, null);
             if (cursor.moveToFirst()) {
                 return cursor.getInt(0);
