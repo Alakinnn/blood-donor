@@ -107,8 +107,6 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         checkLocationPermission();
     }
 
-    // ... [Rest of the MapActivity logic remains the same, just change 'this' to 'requireActivity()'
-    // and make sure to use 'getContext()' instead of 'this' for context]
     private void loadEventsInView() {
         if (map == null) return;
 

@@ -1,9 +1,8 @@
 package com.example.blood_donor.ui;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.view.MenuItem;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
@@ -50,6 +49,11 @@ public class BaseActivity extends AppCompatActivity {
                 fragment = new MapFragment();
             } else if (itemId == R.id.nav_profile) {
                 fragment = new ProfileFragment();
+            } else if (itemId == R.id.nav_create_event &&
+                    AuthManager.getInstance().getUserType() == UserType.SITE_MANAGER) {
+                // Launch CreateEventActivity
+                startActivity(new Intent(this, CreateEventActivity.class));
+                return true;
             }
 
             if (fragment != null) {

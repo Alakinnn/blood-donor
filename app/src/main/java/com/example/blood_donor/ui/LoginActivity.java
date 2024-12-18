@@ -74,7 +74,7 @@ public class LoginActivity extends AppCompatActivity {
         ApiResponse<?> response = userService.login(loginRequest);
 
         if (response.isSuccess()) {
-            Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
+            Intent intent = new Intent(LoginActivity.this, BaseActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();

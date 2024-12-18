@@ -1,6 +1,8 @@
 package com.example.blood_donor.server.dto.events;
 
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class CreateEventDTO {
@@ -15,12 +17,14 @@ public class CreateEventDTO {
     private double longitude;
     private String locationDescription;
     private Map<String, Double> bloodTypeTargets;
+    private LocalTime donationStartTime;
+    private LocalTime donationEndTime;
 
     // Constructor, getters, setters
     public CreateEventDTO(String title, String description, long startTime,
                           long endTime, double bloodGoal,
                           String address, double latitude, double longitude,
-                          String locationDescription) {
+                          String locationDescription, LocalTime donationStartTime, LocalTime donationEndTime) {
         this.title = title;
         this.description = description;
         this.startTime = startTime;
@@ -30,9 +34,28 @@ public class CreateEventDTO {
         this.latitude = latitude;
         this.longitude = longitude;
         this.locationDescription = locationDescription;
+        this.donationEndTime = donationEndTime;
+        this.donationStartTime = donationStartTime;
     }
 
     // Add getters and setters
+
+
+    public LocalTime getDonationStartTime() {
+        return donationStartTime;
+    }
+
+    public void setDonationStartTime(LocalTime donationStartTime) {
+        this.donationStartTime = donationStartTime;
+    }
+
+    public LocalTime getDonationEndTime() {
+        return donationEndTime;
+    }
+
+    public void setDonationEndTime(LocalTime donationEndTime) {
+        this.donationEndTime = donationEndTime;
+    }
 
     public String getTitle() {
         return title;
