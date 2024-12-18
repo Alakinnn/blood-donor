@@ -311,15 +311,8 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
                 .sum();
     }
     private void navigateToMap(DonationEvent event) {
-        // Create bundle with event location
-        Bundle args = new Bundle();
-        args.putDouble("eventLat", event.getLocation().getLatitude());
-        args.putDouble("eventLng", event.getLocation().getLongitude());
-        args.putString("eventId", event.getEventId());
-
         // Navigate to MapFragment
         MapFragment mapFragment = new MapFragment();
-        mapFragment.setArguments(args);
 
         requireActivity().getSupportFragmentManager()
                 .beginTransaction()

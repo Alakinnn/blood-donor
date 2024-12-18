@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -35,6 +36,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textview.MaterialTextView;
 
@@ -60,6 +62,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     private MaterialTextView eventDateView;
     private MaterialTextView eventProgressView;
     private EventMarkerDTO selectedEvent;
+    private MaterialButton directionsButton;
 
     public MapFragment() {
         this.eventService = ServiceLocator.getEventService();
@@ -82,13 +85,42 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         eventTitleView = view.findViewById(R.id.event_title);
         eventDateView = view.findViewById(R.id.event_date);
         eventProgressView = view.findViewById(R.id.event_progress);
+        directionsButton = view.findViewById(R.id.directions_button);
 
         view.findViewById(R.id.view_details_button).setOnClickListener(v -> {
             if (selectedEvent != null) {
                 navigateToEventDetails(selectedEvent.getEventId());
             }
         });
+
+        directionsButton.setOnClickListener(v -> {
+            if (selectedEvent != null) {
+                openGoogleMapsNavigation(selectedEvent);
+            }
+        });
     }
+
+    private void openGoogleMapsNavigation(EventMarkerDTO event) {
+        // Create a Uri for Google Maps navigation
+        Uri gmmIntentUri = Uri.parse(String.format(Locale.US,
+                "google.navigation:q=%f,%f",
+                event.getLatitude(),
+                event.getLongitude()));
+
+        // Create an Intent to open Google Maps
+        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+        mapIntent.setPackage("com.google.android.apps.maps");
+
+        // Check if Google Maps is installed
+        if (mapIntent.resolveActivity(requireContext().getPackageManager()) != null) {
+            startActivity(mapIntent);
+        } else {
+            Toast.makeText(requireContext(),
+                    "Google Maps is not installed",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
 
     private void setupLocationClient() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
@@ -109,52 +141,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         map.setOnMarkerClickListener(this::onMarkerClick);
         checkLocationPermission();
 
-        Bundle args = getArguments();
-        if (args != null) {
-            double eventLat = args.getDouble("eventLat");
-            double eventLng = args.getDouble("eventLng");
-            String eventId = args.getString("eventId");
 
-            // Get current location and show route
-            if (ActivityCompat.checkSelfPermission(requireContext(),
-                    Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-
-                fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
-                    if (location != null) {
-                        LatLng eventLocation = new LatLng(eventLat, eventLng);
-                        LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
-
-                        // Draw route between points
-                        drawRoute(userLocation, eventLocation);
-
-                        // Show marker for the event
-                        map.addMarker(new MarkerOptions()
-                                .position(eventLocation)
-                                .title("New Event Location"));
-
-                        // Show both points in view
-                        LatLngBounds.Builder builder = new LatLngBounds.Builder();
-                        builder.include(userLocation);
-                        builder.include(eventLocation);
-                        map.animateCamera(CameraUpdateFactory.newLatLngBounds(
-                                builder.build(), 100));
-                    }
-                });
-            }
-        }
     }
-
-    private void drawRoute(LatLng origin, LatLng destination) {
-        // Use Google Directions API or a similar service to draw the route
-        // For simplicity, we can just draw a straight line:
-        PolylineOptions lineOptions = new PolylineOptions()
-                .add(origin)
-                .add(destination)
-                .width(5)
-                .color(Color.BLUE);
-        map.addPolyline(lineOptions);
-    }
-
     private void loadEventsInView() {
         if (map == null) return;
 
