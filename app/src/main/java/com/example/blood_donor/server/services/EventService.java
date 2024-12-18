@@ -150,7 +150,6 @@ public class EventService implements IEventService {
     public ApiResponse<List<EventSummaryDTO>> getEventSummaries(EventQueryDTO query) {
         try {
             List<DonationEvent> events = eventRepository.findEvents(query);
-            Log.d("EventService", "Found " + events.size() + " events in database");
 
             List<EventSummaryDTO> summaries = events.stream()
                     .map(event -> {
@@ -210,7 +209,6 @@ public class EventService implements IEventService {
                             summary.setDonationEndTime(event.getDonationEndTime());
                         }
 
-                        // Registration counts
                         try {
                             int donorCount = registrationRepository.getRegistrationCount(
                                     event.getEventId(),
@@ -237,10 +235,8 @@ public class EventService implements IEventService {
 
             return ApiResponse.success(summaries);
         } catch (AppException e) {
-            Log.e("EventService", "Error getting event summaries", e);
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         } catch (Exception e) {
-            Log.e("EventService", "Unexpected error getting event summaries", e);
             return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
         }
     }
@@ -248,11 +244,8 @@ public class EventService implements IEventService {
     public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
             if (eventId == null) {
-                Log.e("EventService", "Attempted to get details for null event ID");
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event ID cannot be null");
             }
-
-            Log.d("EventService", "Fetching event with ID: " + eventId);
 
             // First check cache
             Optional<EventDetailDTO> cachedEvent = cacheService.getCachedEventDetails(eventId);
@@ -276,7 +269,6 @@ public class EventService implements IEventService {
             // Load from database with full error logging
             Optional<DonationEvent> eventOpt = eventRepository.findById(eventId);
             if (!eventOpt.isPresent()) {
-                Log.w("EventService", "Event not found in database: " + eventId);
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event not found");
             }
 
@@ -285,13 +277,11 @@ public class EventService implements IEventService {
             // Load host information with null check
             String hostId = event.getHostId();
             if (hostId == null) {
-                Log.w("EventService", "Event has no host ID: " + eventId);
                 return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Event has no host information");
             }
 
             Optional<User> hostOpt = userRepository.findById(hostId);
             if (!hostOpt.isPresent()) {
-                Log.w("EventService", "Host not found for event: " + eventId + ", host ID: " + hostId);
                 return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Host information not found");
             }
 
@@ -304,7 +294,6 @@ public class EventService implements IEventService {
                 donorCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.DONOR);
                 volunteerCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
             } catch (AppException e) {
-                Log.w("EventService", "Error getting registration counts", e);
                 // Continue with 0 counts rather than failing
             }
 
@@ -344,14 +333,11 @@ public class EventService implements IEventService {
             // Cache the details
             cacheService.cacheEventDetails(eventId, details);
 
-            Log.d("EventService", "Successfully created event details for: " + eventId);
             return ApiResponse.success(details);
 
         } catch (AppException e) {
-            Log.e("EventService", "Error getting event details: " + e.getMessage(), e);
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         } catch (Exception e) {
-            Log.e("EventService", "Unexpected error getting event details", e);
             return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
         }
     }

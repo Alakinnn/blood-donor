@@ -20,6 +20,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventMarkerDTO;
+import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.EventService;
@@ -196,11 +197,29 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private boolean onMarkerClick(Marker marker) {
-        EventMarkerDTO event = markerEventMap.get(marker);
-        if (event == null) return false;
+        EventMarkerDTO markerEvent = markerEventMap.get(marker);
+        if (markerEvent == null) return false;
 
-        selectedEvent = event;
-        updateBottomSheet(event);
+        // Convert MarkerDTO to SummaryDTO
+        EventSummaryDTO summaryDTO = new EventSummaryDTO();
+        summaryDTO.setEventId(markerEvent.getEventId());
+        summaryDTO.setTitle(markerEvent.getTitle());
+        summaryDTO.setStartTime(markerEvent.getStartTime());
+        summaryDTO.setEndTime(markerEvent.getEndTime());
+        summaryDTO.setLatitude(markerEvent.getLatitude());
+        summaryDTO.setLongitude(markerEvent.getLongitude());
+        summaryDTO.setAddress(markerEvent.getAddress());
+        summaryDTO.setBloodGoal(markerEvent.getBloodGoal());
+        summaryDTO.setCurrentBloodCollected(markerEvent.getCurrentBloodCollected());
+        summaryDTO.setRequiredBloodTypes(markerEvent.getRequiredBloodTypes());
+        summaryDTO.setRegisteredDonors(markerEvent.getRegisteredDonors());
+
+        // Cache the converted DTO
+        ServiceLocator.getEventService().cacheEventDetails(summaryDTO);
+
+        // Update bottom sheet and navigate
+        selectedEvent = markerEvent;
+        updateBottomSheet(markerEvent);
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
         return true;
     }

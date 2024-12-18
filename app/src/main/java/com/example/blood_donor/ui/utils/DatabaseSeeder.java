@@ -13,8 +13,10 @@ import com.example.blood_donor.server.services.AuthService;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -97,28 +99,16 @@ public class DatabaseSeeder {
     public void seedDatabase() {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         try {
-            Log.d("DatabaseSeeder", "Starting database seeding");
             db.beginTransaction();
-
-            // Create admin account
-            String adminId = createAdminAccount(db);
-            Log.d("DatabaseSeeder", "Created admin account: " + adminId);
-
-            // Create donor accounts
-            String[] donorIds = createDonorAccounts(db);
-            Log.d("DatabaseSeeder", "Created " + donorIds.length + " donor accounts");
 
             // Create manager accounts
             String[] managerIds = createManagerAccounts(db);
-            Log.d("DatabaseSeeder", "Created " + managerIds.length + " manager accounts");
 
             // Create events
             createEvents(db, managerIds);
 
             db.setTransactionSuccessful();
-            Log.d("DatabaseSeeder", "Database seeding completed successfully");
         } catch (Exception e) {
-            Log.e("DatabaseSeeder", "Error seeding database", e);
             e.printStackTrace();
         } finally {
             db.endTransaction();
@@ -261,14 +251,23 @@ public class DatabaseSeeder {
     }
 
     private void createMockRegistrations(SQLiteDatabase db, String eventId) throws Exception {
+        // Get actual donor IDs from database
+        List<String> donorIds = new ArrayList<>();
+        Cursor cursor = db.query("users", new String[]{"id"},
+                "user_type = ?", new String[]{UserType.DONOR.name()},
+                null, null, null);
+        while(cursor.moveToNext()) {
+            donorIds.add(cursor.getString(0));
+        }
+        cursor.close();
+
         // Create 5-15 donor registrations
         int donorCount = 5 + (int)(Math.random() * 10);
-        for (int i = 0; i < donorCount; i++) {
+        for (int i = 0; i < Math.min(donorCount, donorIds.size()); i++) {
             String registrationId = UUID.randomUUID().toString();
-
             ContentValues values = new ContentValues();
             values.put("registration_id", registrationId);
-            values.put("user_id", UUID.randomUUID().toString()); // Random donor ID
+            values.put("user_id", donorIds.get(i));
             values.put("event_id", eventId);
             values.put("type", RegistrationType.DONOR.name());
             values.put("registration_time", System.currentTimeMillis());
