@@ -2,6 +2,7 @@ package com.example.blood_donor.ui.fragments;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -90,10 +91,14 @@ public class HomeFragment extends Fragment {
         eventList.setAdapter(eventAdapter);
 
         eventAdapter.setOnEventClickListener(event -> {
+            String eventId = event.getEventId();
+            Log.d("HomeFragment", "Opening event details with ID: " + eventId);
+
             Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
-            intent.putExtra("eventId", event.getEventId());
+            intent.putExtra("eventId", eventId);
             startActivity(intent);
         });
+
 
         eventList.addOnScrollListener(new EndlessRecyclerViewScrollListener(
                 (LinearLayoutManager) eventList.getLayoutManager()) {

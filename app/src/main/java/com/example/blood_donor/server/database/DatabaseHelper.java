@@ -239,4 +239,30 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String LOCATION_TABLE_CONSTRAINTS =
             "CHECK (latitude >= -90 AND latitude <= 90 AND " +
                     "longitude >= -180 AND longitude <= 180)";
+
+    public void verifyDatabaseContent() {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            // Check events table
+            cursor = db.rawQuery("SELECT * FROM events", null);
+            Log.d("DatabaseHelper", "Events in database: " + cursor.getCount());
+            while (cursor.moveToNext()) {
+                String eventId = cursor.getString(cursor.getColumnIndexOrThrow("id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                Log.d("DatabaseHelper", String.format("Event found: ID=%s, Title=%s", eventId, title));
+            }
+            cursor.close();
+
+            // Check locations table
+            cursor = db.rawQuery("SELECT * FROM locations", null);
+            Log.d("DatabaseHelper", "Locations in database: " + cursor.getCount());
+            cursor.close();
+
+        } catch (Exception e) {
+            Log.e("DatabaseHelper", "Error verifying database content", e);
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
 }

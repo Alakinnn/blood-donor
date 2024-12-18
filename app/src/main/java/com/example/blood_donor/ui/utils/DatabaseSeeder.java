@@ -1,6 +1,7 @@
 package com.example.blood_donor.ui.utils;
 
 import android.content.ContentValues;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
@@ -71,19 +72,26 @@ public class DatabaseSeeder {
     public void seedDatabase() {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         try {
+            Log.d("DatabaseSeeder", "Starting database seeding");
             db.beginTransaction();
 
             createTestAccounts(db);
-
-            // Create test managers
             String[] managerIds = createTestManagers(db);
-
-            // Create test events
             createTestEvents(db, managerIds);
 
             db.setTransactionSuccessful();
+            Log.d("DatabaseSeeder", "Database seeding completed successfully");
+
+            // Verify events were created
+            Cursor cursor = db.rawQuery("SELECT COUNT(*) FROM events", null);
+            if (cursor.moveToFirst()) {
+                int count = cursor.getInt(0);
+                Log.d("DatabaseSeeder", "Total events in database: " + count);
+            }
+            cursor.close();
         } catch (Exception e) {
             Log.e("DatabaseSeeder", "Error seeding database", e);
+            e.printStackTrace();
         } finally {
             db.endTransaction();
         }
@@ -115,62 +123,87 @@ public class DatabaseSeeder {
     }
 
     private void createTestEvents(SQLiteDatabase db, String[] managerIds) {
-        for (int i = 0; i < 5; i++) {
-            // Create location
-            String locationId = UUID.randomUUID().toString();
-            double lat = BASE_LAT + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
-            double lng = BASE_LNG + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
+        try {
+            for (int i = 0; i < 5; i++) {
+                // Create location
+                String locationId = UUID.randomUUID().toString();
+                Log.d("DatabaseSeeder", "Creating location with ID: " + locationId);
 
-            ContentValues locationValues = new ContentValues();
-            locationValues.put("id", locationId);
-            locationValues.put("address", NEARBY_ADDRESSES[random.nextInt(NEARBY_ADDRESSES.length)]);
-            locationValues.put("latitude", lat);
-            locationValues.put("longitude", lng);
-            locationValues.put("description", "Floor " + (random.nextInt(5) + 1));
-            locationValues.put("created_at", System.currentTimeMillis());
-            locationValues.put("updated_at", System.currentTimeMillis());
+                double lat = BASE_LAT + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
+                double lng = BASE_LNG + (random.nextDouble() * COORD_SPREAD * 2 - COORD_SPREAD);
 
-            db.insert("locations", null, locationValues);
+                ContentValues locationValues = new ContentValues();
+                locationValues.put("id", locationId);
+                locationValues.put("address", NEARBY_ADDRESSES[random.nextInt(NEARBY_ADDRESSES.length)]);
+                locationValues.put("latitude", lat);
+                locationValues.put("longitude", lng);
+                locationValues.put("description", "Floor " + (random.nextInt(5) + 1));
+                locationValues.put("created_at", System.currentTimeMillis());
+                locationValues.put("updated_at", System.currentTimeMillis());
 
-            // Create event
-            String eventId = UUID.randomUUID().toString();
-            Calendar startTime = Calendar.getInstance();
-            startTime.add(Calendar.DAY_OF_MONTH, random.nextInt(30) - 15); // Events from -15 to +15 days
-            Calendar endTime = (Calendar) startTime.clone();
-            endTime.add(Calendar.HOUR, 8);
+                long locationResult = db.insert("locations", null, locationValues);
+                if (locationResult == -1) {
+                    Log.e("DatabaseSeeder", "Failed to insert location");
+                    continue;
+                }
+                Log.d("DatabaseSeeder", "Location created successfully");
 
-            // Default donation hours (9 AM to 5 PM)
-            String donationStartTime = "09:00";
-            String donationEndTime = "17:00";
+                // Create event
+                String eventId = UUID.randomUUID().toString();
+                Log.d("DatabaseSeeder", "Creating event with ID: " + eventId);
 
-            // Create blood type targets
-            Map<String, Double> bloodTypeTargets = new HashMap<>();
-            bloodTypeTargets.put("A+", 10.0 + random.nextDouble() * 20.0);
-            bloodTypeTargets.put("O-", 15.0 + random.nextDouble() * 20.0);
-            bloodTypeTargets.put("B+", 8.0 + random.nextDouble() * 15.0);
+                Calendar startTime = Calendar.getInstance();
+                startTime.add(Calendar.DAY_OF_MONTH, random.nextInt(30) - 15); // Events from -15 to +15 days
+                Calendar endTime = (Calendar) startTime.clone();
+                endTime.add(Calendar.HOUR, 8);
 
-            // Create collected amounts (random percentage of targets)
-            Map<String, Double> bloodCollected = new HashMap<>();
-            bloodTypeTargets.forEach((type, target) ->
-                    bloodCollected.put(type, target * random.nextDouble()));
+                // Default donation hours
+                String donationStartTime = "09:00";
+                String donationEndTime = "17:00";
 
-            ContentValues eventValues = new ContentValues();
-            eventValues.put("id", eventId);
-            eventValues.put("title", EVENT_TITLES[random.nextInt(EVENT_TITLES.length)]);
-            eventValues.put("description", EVENT_DESCRIPTIONS[random.nextInt(EVENT_DESCRIPTIONS.length)]);
-            eventValues.put("start_time", startTime.getTimeInMillis());
-            eventValues.put("end_time", endTime.getTimeInMillis());
-            eventValues.put("blood_type_targets", new JSONObject(bloodTypeTargets).toString());
-            eventValues.put("blood_collected", new JSONObject(bloodCollected).toString());
-            eventValues.put("host_id", managerIds[random.nextInt(managerIds.length)]);
-            eventValues.put("status", determineEventStatus(startTime.getTimeInMillis(), endTime.getTimeInMillis()));
-            eventValues.put("location_id", locationId);
-            eventValues.put("donation_start_time", donationStartTime);
-            eventValues.put("donation_end_time", donationEndTime);
-            eventValues.put("created_at", System.currentTimeMillis());
-            eventValues.put("updated_at", System.currentTimeMillis());
+                // Create blood type targets
+                Map<String, Double> bloodTypeTargets = new HashMap<>();
+                bloodTypeTargets.put("A+", 10.0 + random.nextDouble() * 20.0);
+                bloodTypeTargets.put("O-", 15.0 + random.nextDouble() * 20.0);
+                bloodTypeTargets.put("B+", 8.0 + random.nextDouble() * 15.0);
 
-            db.insert("events", null, eventValues);
+                // Create collected amounts (random percentage of targets)
+                Map<String, Double> bloodCollected = new HashMap<>();
+                bloodTypeTargets.forEach((type, target) ->
+                        bloodCollected.put(type, target * random.nextDouble()));
+
+                ContentValues eventValues = new ContentValues();
+                eventValues.put("id", eventId);
+                eventValues.put("title", EVENT_TITLES[random.nextInt(EVENT_TITLES.length)]);
+                eventValues.put("description", EVENT_DESCRIPTIONS[random.nextInt(EVENT_DESCRIPTIONS.length)]);
+                eventValues.put("start_time", startTime.getTimeInMillis());
+                eventValues.put("end_time", endTime.getTimeInMillis());
+                eventValues.put("blood_type_targets", new JSONObject(bloodTypeTargets).toString());
+                eventValues.put("blood_collected", new JSONObject(bloodCollected).toString());
+                eventValues.put("host_id", managerIds[random.nextInt(managerIds.length)]);
+                eventValues.put("status", determineEventStatus(startTime.getTimeInMillis(), endTime.getTimeInMillis()));
+                eventValues.put("location_id", locationId);
+                eventValues.put("donation_start_time", donationStartTime);
+                eventValues.put("donation_end_time", donationEndTime);
+                eventValues.put("created_at", System.currentTimeMillis());
+                eventValues.put("updated_at", System.currentTimeMillis());
+
+                Log.d("DatabaseSeeder", "Event values prepared: " + eventValues.toString());
+
+                long eventResult = db.insert("events", null, eventValues);
+                if (eventResult == -1) {
+                    Log.e("DatabaseSeeder", "Failed to insert event");
+                    continue;
+                }
+
+                Log.d("DatabaseSeeder", "Successfully created event with ID: " + eventId +
+                        ", Title: " + EVENT_TITLES[random.nextInt(EVENT_TITLES.length)] +
+                        ", Location ID: " + locationId +
+                        ", Host ID: " + managerIds[random.nextInt(managerIds.length)]);
+            }
+        } catch (Exception e) {
+            Log.e("DatabaseSeeder", "Error creating test events", e);
+            e.printStackTrace(); // Add stack trace for more detailed error info
         }
     }
 

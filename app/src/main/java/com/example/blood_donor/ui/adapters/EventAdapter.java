@@ -1,6 +1,7 @@
 package com.example.blood_donor.ui.adapters;
 
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -54,6 +55,9 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     }
 
     public void addEvents(List<EventSummaryDTO> newEvents) {
+        for (EventSummaryDTO event : newEvents) {
+            Log.d("EventAdapter", "Adding event: " + event.getEventId() + " - " + event.getTitle());
+        }
         int startPosition = events.size();
         events.addAll(newEvents);
         notifyItemRangeInserted(startPosition, newEvents.size());

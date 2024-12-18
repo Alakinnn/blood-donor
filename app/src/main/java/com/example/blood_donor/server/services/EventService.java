@@ -1,6 +1,7 @@
 package com.example.blood_donor.server.services;
 
 import android.os.Build;
+import android.util.Log;
 
 import com.example.blood_donor.server.dto.events.BloodTypeProgress;
 import com.example.blood_donor.server.dto.events.CreateEventDTO;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -118,6 +120,14 @@ public class EventService implements IEventService {
     public ApiResponse<List<EventSummaryDTO>> getEventSummaries(EventQueryDTO query) {
         try {
             List<DonationEvent> events = eventRepository.findEvents(query);
+            Log.d("EventService", "Found " + events.size() + " events in database");
+
+            // Add logging for each event
+            for (DonationEvent event : events) {
+                Log.d("EventService", String.format("Event: ID=%s, Title=%s",
+                        event.getEventId(), event.getTitle()));
+            }
+
             List<EventSummaryDTO> summaries = events.stream()
                     .map(event -> {
                         EventSummaryDTO summary = new EventSummaryDTO();
@@ -140,12 +150,15 @@ public class EventService implements IEventService {
                         if (event.getDistance() != null) {
                             summary.setDistance(event.getDistance());
                         }
+                        // Log the summary creation
+                        Log.d("EventService", "Created summary for event: " + event.getEventId());
                         return summary;
                     })
                     .collect(Collectors.toList());
 
             return ApiResponse.success(summaries);
         } catch (AppException e) {
+            Log.e("EventService", "Error getting event summaries", e);
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         }
     }
@@ -153,29 +166,38 @@ public class EventService implements IEventService {
     @Override
     public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
+            Log.d("EventService", "Fetching event with ID: " + eventId);
+
             DonationEvent event = cacheService.getCachedEventDetails(eventId)
                     .orElseGet(() -> {
                         try {
-                            return eventRepository.findById(eventId)
-                                    .orElseThrow(() -> new AppException(
-                                            ErrorCode.INVALID_INPUT,
-                                            "Event not found"
-                                    ));
+                            Optional<DonationEvent> eventOpt = eventRepository.findById(eventId);
+                            if (!eventOpt.isPresent()) {
+                                Log.e("EventService", "Event not found in database");
+                                throw new RuntimeException(new AppException(
+                                        ErrorCode.INVALID_INPUT,
+                                        "Event not found"
+                                ));
+                            }
+                            return eventOpt.get();
                         } catch (AppException e) {
                             throw new RuntimeException(e);
                         }
                     });
 
+            Log.d("EventService", "Found event: " + event.getTitle());
+
             User host = userRepository.findById(event.getHostId())
-                    .orElseThrow(() -> new AppException(
-                            ErrorCode.DATABASE_ERROR,
-                            "Host not found"
-                    ));
+                    .orElseThrow(() -> {
+                        Log.e("EventService", "Host not found for event: " + eventId);
+                        return new AppException(ErrorCode.DATABASE_ERROR, "Host not found");
+                    });
+
+            Log.d("EventService", "Found host: " + host.getFullName());
 
             int donorCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.DONOR);
             int volunteerCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
 
-            // Create blood progress list
             List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
                     .map(req -> new BloodTypeProgress(
                             req.getTargetAmount(),
@@ -207,12 +229,14 @@ public class EventService implements IEventService {
                     getDonationEndTime(event)
             );
 
+            Log.d("EventService", "Successfully created DTO for event: " + eventId);
             return ApiResponse.success(dto);
+
         } catch (AppException e) {
+            Log.e("EventService", "Error getting event details", e);
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         }
     }
-
     // Helper methods for donation hours
     private LocalTime getDonationStartTime(DonationEvent event) {
         return event.getDonationStartTime() != null ?

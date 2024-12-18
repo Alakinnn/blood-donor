@@ -38,6 +38,9 @@ public class BloodDonorApp extends Application {
             DatabaseSeeder seeder = new DatabaseSeeder(ServiceLocator.getDatabaseHelper());
             seeder.seedDatabase();
 
+            // Verify database content after seeding
+            ServiceLocator.getDatabaseHelper().verifyDatabaseContent();
+
             // Mark database as seeded
             prefs.edit().putBoolean(KEY_DB_SEEDED, true).apply();
         }).start();

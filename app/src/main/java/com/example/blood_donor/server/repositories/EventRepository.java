@@ -6,6 +6,7 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import android.util.Log;
 
 import com.example.blood_donor.server.database.DatabaseHelper;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
@@ -22,6 +23,7 @@ import org.json.JSONObject;
 
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -248,26 +250,50 @@ public class EventRepository implements IEventRepository {
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
+            Log.d("EventRepository", "Finding event with ID: " + eventId);
+
             db = dbHelper.getReadableDatabase();
 
-            QueryBuilder queryBuilder = new QueryBuilder();
-            queryBuilder.select("e.*, l.*")
-                    .from("events e")
-                    .join("locations l ON e.location_id = l.id")
-                    .where("e.id = ?", eventId);
+            // First verify the event exists
+            Cursor checkCursor = db.query(
+                    "events",
+                    new String[]{"id"},
+                    "id = ?",
+                    new String[]{eventId},
+                    null, null, null
+            );
 
-            cursor = queryBuilder.execute(db);
+            if (checkCursor != null && checkCursor.getCount() > 0) {
+                Log.d("EventRepository", "Event exists in events table");
+            } else {
+                Log.d("EventRepository", "Event does not exist in events table");
+            }
+            checkCursor.close();
+
+            // Now do the full query with join
+            String query = "SELECT e.*, l.* FROM events e " +
+                    "JOIN locations l ON e.location_id = l.id " +
+                    "WHERE e.id = ?";
+
+            cursor = db.rawQuery(query, new String[]{eventId});
 
             if (cursor != null && cursor.moveToFirst()) {
+                Log.d("EventRepository", "Event found with location data");
+                // Verify we have all required columns
+                String[] columns = cursor.getColumnNames();
+                Log.d("EventRepository", "Columns found: " + Arrays.toString(columns));
+
                 return Optional.of(cursorToEvent(cursor));
             }
 
+            Log.d("EventRepository", "Event not found after join");
             return Optional.empty();
 
+        } catch (Exception e) {
+            Log.e("EventRepository", "Error finding event", e);
+            throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
         } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            if (cursor != null) cursor.close();
         }
     }
 

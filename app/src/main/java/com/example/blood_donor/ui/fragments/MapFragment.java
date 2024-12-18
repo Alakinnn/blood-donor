@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -227,6 +228,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private void navigateToEventDetails(String eventId) {
+        Log.d("MapFragment", "Opening event details with ID: " + eventId);
+
         Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
         intent.putExtra("eventId", eventId);
         startActivity(intent);

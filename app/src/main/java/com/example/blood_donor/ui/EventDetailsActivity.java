@@ -1,6 +1,7 @@
 package com.example.blood_donor.ui;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -55,7 +56,10 @@ public class EventDetailsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_event_details);
 
         eventId = getIntent().getStringExtra("eventId");
+        Log.d("EventDetailsActivity", "Opening details for event ID: " + eventId);
+
         if (eventId == null) {
+            Log.e("EventDetailsActivity", "No event ID provided");
             Toast.makeText(this, "Invalid event", Toast.LENGTH_SHORT).show();
             finish();
             return;
@@ -85,13 +89,24 @@ public class EventDetailsActivity extends AppCompatActivity {
 
     private void loadEventDetails() {
         String userId = AuthManager.getInstance().getUserId();
-        ApiResponse<EventDetailDTO> response =
-                eventService.getEventDetails(eventId, userId);
 
-        if (response.isSuccess() && response.getData() != null) {
-            eventDetails = response.getData();
-            updateUI();
-        } else {
+        // Add logging
+        Log.d("EventDetails", "Loading event with ID: " + eventId);
+
+        try {
+            ApiResponse<EventDetailDTO> response = eventService.getEventDetails(eventId, userId);
+
+            if (response.isSuccess() && response.getData() != null) {
+                eventDetails = response.getData();
+                updateUI();
+            } else {
+                // Handle error gracefully instead of crashing
+                Toast.makeText(this, "Error loading event: " + response.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        } catch (Exception e) {
+            Log.e("EventDetails", "Error loading event details", e);
             Toast.makeText(this, "Error loading event details",
                     Toast.LENGTH_SHORT).show();
             finish();
