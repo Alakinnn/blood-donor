@@ -11,10 +11,16 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.fragment.app.Fragment;
 
 import com.example.blood_donor.R;
+import com.example.blood_donor.server.dto.events.CreateEventDTO;
+import com.example.blood_donor.server.models.event.DonationEvent;
+import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.ui.manager.AuthManager;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -26,11 +32,16 @@ import com.google.android.material.textfield.TextInputEditText;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class CreateEventFragment extends Fragment implements OnMapReadyCallback {
     private GoogleMap map;
@@ -46,7 +57,7 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_create_event, container, false);
-
+        view.findViewById(R.id.createButton).setOnClickListener(v -> handleEventCreation());
         initializeViews(view);
         setupMap();
         setupTimeSelectors(view);
@@ -79,8 +90,10 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
                     String time = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
                     if (isStartTime) {
                         startTimeBtn.setText("Start: " + time);
+                        startTime = LocalTime.of(hourOfDay, minute);
                     } else {
                         endTimeBtn.setText("End: " + time);
+                        endTime = LocalTime.of(hourOfDay, minute);
                     }
                 },
                 12, 0, false
@@ -191,5 +204,126 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
                 .replace(R.id.mapContainer, mapFragment)
                 .commit();
         mapFragment.getMapAsync(this);
+    }
+
+    private void handleEventCreation() {
+        // Get all form inputs
+        String title = ((TextInputEditText) requireView().findViewById(R.id.titleInput)).getText().toString();
+        String description = ((TextInputEditText) requireView().findViewById(R.id.descriptionInput)).getText().toString();
+
+        // Basic field validation
+        if (title.isEmpty() || description.isEmpty() || selectedLocation == null ||
+                startDate == 0 || endDate == 0 || startTime == null || endTime == null) {
+            Toast.makeText(getContext(), "Please fill all fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Date validation
+        if (endDate < startDate) {
+            Toast.makeText(getContext(), "End date must be after start date", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // If same date, check times
+        if (endDate == startDate && endTime.isBefore(startTime)) {
+            Toast.makeText(getContext(), "End time must be after start time", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Create timestamps by combining dates and times
+        LocalDateTime startDateTime = LocalDateTime.of(
+                Instant.ofEpochMilli(startDate).atZone(ZoneId.systemDefault()).toLocalDate(),
+                startTime
+        );
+        LocalDateTime endDateTime = LocalDateTime.of(
+                Instant.ofEpochMilli(endDate).atZone(ZoneId.systemDefault()).toLocalDate(),
+                endTime
+        );
+
+        if (endDateTime.isBefore(startDateTime)) {
+            Toast.makeText(getContext(), "Event end must be after event start", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Collect blood type requirements
+        Map<String, Double> bloodTypeTargets = new HashMap<>();
+        LinearLayout container = requireView().findViewById(R.id.bloodTypeContainer);
+        boolean hasAtLeastOneBloodType = false;
+
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            TextView typeLabel = child.findViewById(R.id.bloodTypeLabel);
+            TextInputEditText amountInput = child.findViewById(R.id.amountInput);
+            String bloodType = typeLabel.getText().toString();
+            String amount = amountInput.getText().toString().trim();
+
+            // Default to 0.0 for empty or zero amounts
+            double value = 0.0;
+            if (!amount.isEmpty()) {
+                try {
+                    value = Double.parseDouble(amount);
+                    if (value < 0) {
+                        Toast.makeText(getContext(), "Blood amounts cannot be negative", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (value > 0) {
+                        hasAtLeastOneBloodType = true;
+                    }
+                } catch (NumberFormatException e) {
+                    Toast.makeText(getContext(), "Please enter valid numbers for blood amounts", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+            bloodTypeTargets.put(bloodType, value);
+        }
+
+        // Validate that at least one blood type is needed
+        if (!hasAtLeastOneBloodType) {
+            Toast.makeText(getContext(), "Please specify at least one required blood type", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Create event DTO and continue with event creation...
+        CreateEventDTO eventDTO = new CreateEventDTO(
+                title, description,
+                startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                getTotalBloodGoal(bloodTypeTargets),
+                selectedAddress, selectedLocation.latitude, selectedLocation.longitude,
+                "", startTime, endTime
+        );
+        eventDTO.setBloodTypeTargets(bloodTypeTargets);
+
+        // Create event using EventService...
+        String userId = AuthManager.getInstance().getUserId();
+        ApiResponse<DonationEvent> response = ServiceLocator.getEventService().createEvent(userId, eventDTO);
+
+        if (response.isSuccess()) {
+            Toast.makeText(getContext(), "Event created successfully", Toast.LENGTH_SHORT).show();
+            navigateToMap(response.getData());
+        } else {
+            Toast.makeText(getContext(), response.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+    private double getTotalBloodGoal(Map<String, Double> bloodTypeTargets) {
+        return bloodTypeTargets.values().stream()
+                .mapToDouble(Double::doubleValue)
+                .sum();
+    }
+    private void navigateToMap(DonationEvent event) {
+        // Create bundle with event location
+        Bundle args = new Bundle();
+        args.putDouble("eventLat", event.getLocation().getLatitude());
+        args.putDouble("eventLng", event.getLocation().getLongitude());
+        args.putString("eventId", event.getEventId());
+
+        // Navigate to MapFragment
+        MapFragment mapFragment = new MapFragment();
+        mapFragment.setArguments(args);
+
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, mapFragment)
+                .commit();
     }
 }

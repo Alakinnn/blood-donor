@@ -3,6 +3,7 @@ package com.example.blood_donor.ui.fragments;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,8 +30,10 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textview.MaterialTextView;
@@ -105,6 +108,51 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         map.setOnCameraIdleListener(this::loadEventsInView);
         map.setOnMarkerClickListener(this::onMarkerClick);
         checkLocationPermission();
+
+        Bundle args = getArguments();
+        if (args != null) {
+            double eventLat = args.getDouble("eventLat");
+            double eventLng = args.getDouble("eventLng");
+            String eventId = args.getString("eventId");
+
+            // Get current location and show route
+            if (ActivityCompat.checkSelfPermission(requireContext(),
+                    Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+                fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+                    if (location != null) {
+                        LatLng eventLocation = new LatLng(eventLat, eventLng);
+                        LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+
+                        // Draw route between points
+                        drawRoute(userLocation, eventLocation);
+
+                        // Show marker for the event
+                        map.addMarker(new MarkerOptions()
+                                .position(eventLocation)
+                                .title("New Event Location"));
+
+                        // Show both points in view
+                        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+                        builder.include(userLocation);
+                        builder.include(eventLocation);
+                        map.animateCamera(CameraUpdateFactory.newLatLngBounds(
+                                builder.build(), 100));
+                    }
+                });
+            }
+        }
+    }
+
+    private void drawRoute(LatLng origin, LatLng destination) {
+        // Use Google Directions API or a similar service to draw the route
+        // For simplicity, we can just draw a straight line:
+        PolylineOptions lineOptions = new PolylineOptions()
+                .add(origin)
+                .add(destination)
+                .width(5)
+                .color(Color.BLUE);
+        map.addPolyline(lineOptions);
     }
 
     private void loadEventsInView() {

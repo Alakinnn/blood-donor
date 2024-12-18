@@ -53,16 +53,26 @@ public class EventService implements IEventService {
                 throw new AppException(ErrorCode.INVALID_INPUT, "Blood type targets are required");
             }
 
+            boolean hasAtLeastOneTarget = false;
             // Validate each blood type
             for (Map.Entry<String, Double> entry : dto.getBloodTypeTargets().entrySet()) {
                 if (!isValidBloodType(entry.getKey())) {
                     throw new AppException(ErrorCode.INVALID_INPUT,
                             "Invalid blood type: " + entry.getKey());
                 }
-                if (entry.getValue() <= 0) {
+                if (entry.getValue() < 0) {  // Only check for negative values
                     throw new AppException(ErrorCode.INVALID_INPUT,
-                            "Target amount must be greater than 0 for " + entry.getKey());
+                            "Target amount cannot be negative for " + entry.getKey());
                 }
+                if (entry.getValue() > 0) {
+                    hasAtLeastOneTarget = true;
+                }
+            }
+
+            // Check that at least one blood type has a positive target
+            if (!hasAtLeastOneTarget) {
+                throw new AppException(ErrorCode.INVALID_INPUT,
+                        "At least one blood type must have a target amount greater than 0");
             }
 
             // Create location and event
@@ -82,7 +92,7 @@ public class EventService implements IEventService {
                     dto.getStartTime(),
                     dto.getEndTime(),
                     location,
-                    dto.getBloodTypeTargets(),  // Pass blood type targets
+                    dto.getBloodTypeTargets(),
                     hostId
             );
 

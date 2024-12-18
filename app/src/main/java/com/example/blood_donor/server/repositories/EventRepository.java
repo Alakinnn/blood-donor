@@ -11,6 +11,7 @@ import com.example.blood_donor.server.database.DatabaseHelper;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.errors.ErrorCode;
+import com.example.blood_donor.server.models.event.BloodTypeRequirement;
 import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.location.Location;
 import com.example.blood_donor.server.utils.QueryBuilder;
@@ -275,6 +276,20 @@ public class EventRepository implements IEventRepository {
             values.put("created_at", System.currentTimeMillis());
             values.put("updated_at", System.currentTimeMillis());
 
+            // Convert blood type targets to JSON
+            JSONObject bloodTypeTargets = new JSONObject();
+            for (Map.Entry<String, BloodTypeRequirement> entry : event.getBloodRequirements().entrySet()) {
+                bloodTypeTargets.put(entry.getKey(), entry.getValue().getTargetAmount());
+            }
+            values.put("blood_type_targets", bloodTypeTargets.toString());
+
+            // Add blood_collected as empty JSON object - this was missing before
+            JSONObject bloodCollected = new JSONObject();
+            for (Map.Entry<String, BloodTypeRequirement> entry : event.getBloodRequirements().entrySet()) {
+                bloodCollected.put(entry.getKey(), 0.0); // Initialize with 0 collected for each blood type
+            }
+            values.put("blood_collected", bloodCollected.toString());
+
             long result = db.insert(TABLE_EVENTS, null, values);
             if (result == -1) {
                 throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to save event");
@@ -283,7 +298,7 @@ public class EventRepository implements IEventRepository {
             db.setTransactionSuccessful();
             return Optional.of(event);
 
-        } catch (SQLiteException e) {
+        } catch (SQLiteException | JSONException e) {
             throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
         } finally {
             if (db != null) {
@@ -291,6 +306,7 @@ public class EventRepository implements IEventRepository {
             }
         }
     }
+
     @Override
     public List<DonationEvent> findEventsBetween(long startTime, long endTime) throws AppException {
         SQLiteDatabase db = null;
