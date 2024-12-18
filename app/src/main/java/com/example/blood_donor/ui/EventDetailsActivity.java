@@ -1,6 +1,7 @@
 package com.example.blood_donor.ui;
 
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,6 +20,7 @@ import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.textview.MaterialTextView;
 
 import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Locale;
 
@@ -126,7 +128,23 @@ public class EventDetailsActivity extends AppCompatActivity {
                 "%.1f%% of %.1fL goal",
                 progress, eventDetails.getBloodGoal()
         ));
+        // Add donation hours display
+        if (eventDetails.getDonationStartTime() != null &&
+                eventDetails.getDonationEndTime() != null) {
+            String donationHours = String.format("Donation Hours: %s - %s",
+                    eventDetails.getDonationStartTime().format(
+                            DateTimeFormatter.ofPattern("h:mm a")),
+                    eventDetails.getDonationEndTime().format(
+                            DateTimeFormatter.ofPattern("h:mm a")));
 
+            MaterialTextView donationHoursView = findViewById(R.id.donationHours);
+            donationHoursView.setText(donationHours);
+            donationHoursView.setVisibility(View.VISIBLE);
+        }
+
+        // Update blood types display
+        String bloodTypes = String.join(", ", eventDetails.getRequiredBloodTypes());
+        requiredBloodTypesView.setText("Required Blood Types: " + bloodTypes);
         setupActionButton();
     }
 

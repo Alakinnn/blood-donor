@@ -2,6 +2,7 @@ package com.example.blood_donor.server.dto.events;
 
 import com.example.blood_donor.server.models.event.EventStatus;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -34,8 +35,18 @@ public class EventDetailDTO {
     private int volunteerCount;
     private List<BloodTypeProgress> bloodProgress;
     private Map<String, Integer> donorsByBloodType;
-
-    public EventDetailDTO(String eventId, String title, String description, long startTime, long endTime, EventStatus status, String hostId, String hostName, String hostPhoneNumber, String address, double latitude, double longitude, String locationDescription, List<String> requiredBloodTypes, double bloodGoal, double currentBloodCollected, int donorCount, int volunteerCount, List<BloodTypeProgress> bloodProgress) {
+    private LocalTime donationStartTime;
+    private LocalTime donationEndTime;
+    public EventDetailDTO(String eventId, String title, String description,
+                          long startTime, long endTime, EventStatus status,
+                          String hostId, String hostName, String hostPhoneNumber,
+                          String address, double latitude, double longitude,
+                          String locationDescription, List<String> requiredBloodTypes,
+                          double bloodGoal, double currentBloodCollected,
+                          int donorCount, int volunteerCount,
+                          List<BloodTypeProgress> bloodProgress,  // Add this parameter
+                          LocalTime donationStartTime,            // And these two
+                          LocalTime donationEndTime) {
         this.eventId = eventId;
         this.title = title;
         this.description = description;
@@ -54,6 +65,9 @@ public class EventDetailDTO {
         this.currentBloodCollected = currentBloodCollected;
         this.donorCount = donorCount;
         this.volunteerCount = volunteerCount;
+        this.bloodProgress = bloodProgress;
+        this.donationStartTime = donationStartTime;
+        this.donationEndTime = donationEndTime;
     }
 
     public String getEventId() {
@@ -198,5 +212,14 @@ public class EventDetailDTO {
 
     public void setVolunteerCount(int volunteerCount) {
         this.volunteerCount = volunteerCount;
+    }
+    // Add getters and setters
+    public LocalTime getDonationStartTime() { return donationStartTime; }
+    public void setDonationStartTime(LocalTime donationStartTime) {
+        this.donationStartTime = donationStartTime;
+    }
+    public LocalTime getDonationEndTime() { return donationEndTime; }
+    public void setDonationEndTime(LocalTime donationEndTime) {
+        this.donationEndTime = donationEndTime;
     }
 }

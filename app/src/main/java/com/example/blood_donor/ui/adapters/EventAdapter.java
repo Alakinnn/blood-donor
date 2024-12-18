@@ -15,6 +15,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 
 import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -68,6 +69,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
         private final TextView dateTimeView;
         private final LinearProgressIndicator progressBar;
         private final TextView progressText;
+        private final TextView bloodTypesView;
         private final MaterialButton detailsButton;
 
         EventViewHolder(@NonNull View itemView) {
@@ -77,6 +79,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             progressBar = itemView.findViewById(R.id.bloodProgress);
             progressText = itemView.findViewById(R.id.progressText);
             detailsButton = itemView.findViewById(R.id.detailsButton);
+            bloodTypesView = itemView.findViewById(R.id.requiredBloodTypes);
         }
 
         void bind(EventSummaryDTO event) {
@@ -97,6 +100,18 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
                     listener.onEventClick(event);
                 }
             });
+
+            String bloodTypes = "Blood Types Needed: " +
+                    String.join(", ", event.getRequiredBloodTypes());
+            bloodTypesView.setText(bloodTypes);
+
+            // Add donation hours if available
+            if (event.getDonationStartTime() != null && event.getDonationEndTime() != null) {
+                String donationHours = String.format("Donation Hours: %s - %s",
+                        event.getDonationStartTime().format(DateTimeFormatter.ofPattern("h:mm a")),
+                        event.getDonationEndTime().format(DateTimeFormatter.ofPattern("h:mm a")));
+                dateTimeView.append("\n" + donationHours);
+            }
         }
     }
 }

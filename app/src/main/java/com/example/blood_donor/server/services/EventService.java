@@ -22,6 +22,8 @@ import com.example.blood_donor.server.repositories.IUserRepository;
 import com.example.blood_donor.server.repositories.RegistrationRepository;
 import com.example.blood_donor.server.services.interfaces.IEventService;
 
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,8 @@ public class EventService implements IEventService {
     private final IUserRepository userRepository;
     private final IRegistrationRepository registrationRepository;
     private final EventCacheService cacheService;
+    private static final LocalTime DEFAULT_DONATION_START = LocalTime.of(9, 0);  // 9 AM
+    private static final LocalTime DEFAULT_DONATION_END = LocalTime.of(17, 0);   // 5 PM
 
     public EventService(IEventRepository eventRepository,
                         EventCacheService cacheService,
@@ -93,7 +97,9 @@ public class EventService implements IEventService {
                     dto.getEndTime(),
                     location,
                     dto.getBloodTypeTargets(),
-                    hostId
+                    hostId,
+                    dto.getDonationStartTime(),
+                    dto.getDonationEndTime()
             );
 
             eventRepository.save(event);
@@ -169,6 +175,7 @@ public class EventService implements IEventService {
             int donorCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.DONOR);
             int volunteerCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
 
+            // Create blood progress list
             List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
                     .map(req -> new BloodTypeProgress(
                             req.getTargetAmount(),
@@ -176,35 +183,45 @@ public class EventService implements IEventService {
                     ))
                     .collect(Collectors.toList());
 
-            EventDetailDTO dto = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                dto = new EventDetailDTO(
-                        event.getEventId(),
-                        event.getTitle(),
-                        event.getDescription(),
-                        event.getStartTime(),
-                        event.getEndTime(),
-                        event.getStatus(),
-                        host.getUserId(),
-                        host.getFullName(),
-                        host.getPhoneNumber(),
-                        event.getLocation().getAddress(),
-                        event.getLocation().getLatitude(),
-                        event.getLocation().getLongitude(),
-                        event.getLocation().getDescription(),
-                        event.getBloodRequirements().keySet().stream().toList(),
-                        event.getTotalTargetAmount(),
-                        event.getTotalCollectedAmount(),
-                        donorCount,
-                        volunteerCount,
-                        bloodProgress
-                );
-            }
+            EventDetailDTO dto = new EventDetailDTO(
+                    event.getEventId(),
+                    event.getTitle(),
+                    event.getDescription(),
+                    event.getStartTime(),
+                    event.getEndTime(),
+                    event.getStatus(),
+                    host.getUserId(),
+                    host.getFullName(),
+                    host.getPhoneNumber(),
+                    event.getLocation().getAddress(),
+                    event.getLocation().getLatitude(),
+                    event.getLocation().getLongitude(),
+                    event.getLocation().getDescription(),
+                    new ArrayList<>(event.getBloodRequirements().keySet()),
+                    event.getTotalTargetAmount(),
+                    event.getTotalCollectedAmount(),
+                    donorCount,
+                    volunteerCount,
+                    bloodProgress,
+                    getDonationStartTime(event),
+                    getDonationEndTime(event)
+            );
 
             return ApiResponse.success(dto);
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         }
+    }
+
+    // Helper methods for donation hours
+    private LocalTime getDonationStartTime(DonationEvent event) {
+        return event.getDonationStartTime() != null ?
+                event.getDonationStartTime() : DEFAULT_DONATION_START;
+    }
+
+    private LocalTime getDonationEndTime(DonationEvent event) {
+        return event.getDonationEndTime() != null ?
+                event.getDonationEndTime() : DEFAULT_DONATION_END;
     }
     private EventSummaryDTO convertToSummary(DonationEvent event) {
         EventSummaryDTO summary = new EventSummaryDTO();
@@ -222,42 +239,47 @@ public class EventService implements IEventService {
         return summary;
     }
 
+    private EventSummaryDTO convertToEventSummary(DonationEvent event) {
+        EventSummaryDTO summary = new EventSummaryDTO();
+        summary.setEventId(event.getEventId());
+        summary.setTitle(event.getTitle());
+        summary.setLatitude(event.getLocation().getLatitude());
+        summary.setLongitude(event.getLocation().getLongitude());
+        summary.setStartTime(event.getStartTime());
+        summary.setEndTime(event.getEndTime());
+        summary.setBloodGoal(event.getTotalTargetAmount());
+        summary.setCurrentBloodCollected(event.getTotalCollectedAmount());
+
+        // Set required blood types
+        summary.setRequiredBloodTypes(
+                new ArrayList<>(event.getBloodRequirements().keySet())
+        );
+
+        // Set donation hours
+        summary.setDonationStartTime(getDonationStartTime(event));
+        summary.setDonationEndTime(getDonationEndTime(event));
+
+        // Set blood progress
+        List<BloodTypeProgress> bloodProgress = event.getBloodRequirements()
+                .values().stream()
+                .map(req -> new BloodTypeProgress(
+                        req.getTargetAmount(),
+                        req.getCollectedAmount()
+                ))
+                .collect(Collectors.toList());
+        summary.setBloodProgress(bloodProgress);
+
+        if (event.getDistance() != null) {
+            summary.setDistance(event.getDistance());
+        }
+
+        return summary;
+    }
+
     public ApiResponse<List<EventSummaryDTO>> convertToEventSummaries(List<DonationEvent> events) {
         try {
             List<EventSummaryDTO> summaries = events.stream()
-                    .map(event -> {
-                        EventSummaryDTO summary = new EventSummaryDTO();
-                        summary.setEventId(event.getEventId());
-                        summary.setTitle(event.getTitle());
-                        summary.setLatitude(event.getLocation().getLatitude());
-                        summary.setLongitude(event.getLocation().getLongitude());
-                        summary.setStartTime(event.getStartTime());
-                        summary.setEndTime(event.getEndTime());
-                        summary.setBloodGoal(event.getTotalTargetAmount());
-                        summary.setCurrentBloodCollected(event.getTotalCollectedAmount());
-                        summary.setRequiredBloodTypes(
-                                event.getBloodRequirements().keySet().stream().collect(Collectors.toList())
-                        );
-
-                        // Convert blood requirements to progress list
-                        List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
-                                .map(req -> new BloodTypeProgress(
-                                        req.getTargetAmount(),
-                                        req.getCollectedAmount()
-                                ))
-                                .collect(Collectors.toList());
-                        summary.setBloodProgress(bloodProgress);
-
-                        if (event.getDistance() != null) {
-                            summary.setDistance(event.getDistance());
-                        }
-
-                        double totalProgress = event.getTotalTargetAmount() > 0 ?
-                                (event.getTotalCollectedAmount() / event.getTotalTargetAmount()) * 100 : 0;
-                        summary.setTotalProgress(totalProgress);
-
-                        return summary;
-                    })
+                    .map(this::convertToEventSummary)  // Use our new method
                     .collect(Collectors.toList());
 
             return ApiResponse.success(summaries);

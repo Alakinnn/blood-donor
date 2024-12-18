@@ -1,5 +1,6 @@
 package com.example.blood_donor.server.dto.events;
 
+import java.time.LocalTime;
 import java.util.List;
 
 public class EventSummaryDTO {
@@ -8,6 +9,8 @@ public class EventSummaryDTO {
     private double latitude;
     private double longitude;
     private List<String> requiredBloodTypes;
+    private LocalTime donationStartTime;
+    private LocalTime donationEndTime;
     private long startTime;
     private long endTime;
     private double bloodGoal;
@@ -62,7 +65,14 @@ public class EventSummaryDTO {
     public void setRequiredBloodTypes(List<String> requiredBloodTypes) {
         this.requiredBloodTypes = requiredBloodTypes;
     }
-
+    public LocalTime getDonationStartTime() { return donationStartTime; }
+    public void setDonationStartTime(LocalTime donationStartTime) {
+        this.donationStartTime = donationStartTime;
+    }
+    public LocalTime getDonationEndTime() { return donationEndTime; }
+    public void setDonationEndTime(LocalTime donationEndTime) {
+        this.donationEndTime = donationEndTime;
+    }
     public long getStartTime() {
         return startTime;
     }

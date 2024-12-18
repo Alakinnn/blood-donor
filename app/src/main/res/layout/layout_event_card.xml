@@ -26,6 +26,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp" />
 
+        <TextView
+            android:id="@+id/requiredBloodTypes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/colorPrimary" />
+
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/bloodProgress"
             android:layout_width="match_parent"

@@ -2,6 +2,7 @@ package com.example.blood_donor.server.models.event;
 
 import com.example.blood_donor.server.models.location.Location;
 
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,10 +22,13 @@ public class DonationEvent {
     private String hostName;
     private String hostPhoneNumber;
     private Map<String, BloodTypeRequirement> bloodRequirements;
+    private LocalTime donationStartTime;
+    private LocalTime donationEndTime;
 
     public DonationEvent(String eventId, String title, String description,
                          long startTime, long endTime, Location location,
-                         Map<String, Double> bloodTypeTargets, String hostId) {
+                         Map<String, Double> bloodTypeTargets, String hostId,
+                         LocalTime donationStartTime, LocalTime donationEndTime) {
         this.eventId = eventId;
         this.title = title;
         this.description = description;
@@ -42,6 +46,8 @@ public class DonationEvent {
         bloodTypeTargets.forEach((bloodType, target) ->
                 bloodRequirements.put(bloodType, new BloodTypeRequirement(bloodType, target))
         );
+        this.donationStartTime = donationStartTime;
+        this.donationEndTime = donationEndTime;
     }
     public boolean canDonateBloodType(String bloodType) {
         return bloodRequirements.containsKey(bloodType);
@@ -53,7 +59,14 @@ public class DonationEvent {
             requirement.addDonation(amount);
         }
     }
-
+    public LocalTime getDonationStartTime() { return donationStartTime; }
+    public void setDonationStartTime(LocalTime donationStartTime) {
+        this.donationStartTime = donationStartTime;
+    }
+    public LocalTime getDonationEndTime() { return donationEndTime; }
+    public void setDonationEndTime(LocalTime donationEndTime) {
+        this.donationEndTime = donationEndTime;
+    }
     public double getTotalTargetAmount() {
         return bloodRequirements.values().stream()
                 .mapToDouble(BloodTypeRequirement::getTargetAmount)

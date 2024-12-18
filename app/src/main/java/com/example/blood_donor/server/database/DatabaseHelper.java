@@ -66,6 +66,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "host_id TEXT NOT NULL," +
                     "status TEXT NOT NULL," +
                     "location_id TEXT NOT NULL," +
+                    "donation_start_time TEXT," +
+                    "donation_end_time TEXT," +
                     "created_at INTEGER NOT NULL," +
                     "updated_at INTEGER NOT NULL," +
                     "FOREIGN KEY (location_id) REFERENCES " + TABLE_LOCATIONS + "(id)," +

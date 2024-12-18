@@ -20,6 +20,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -157,6 +158,17 @@ public class EventRepository implements IEventRepository {
             // Handle error
         }
 
+        LocalTime donationStartTime = null;
+        LocalTime donationEndTime = null;
+
+        String startTimeStr = cursor.getString(cursor.getColumnIndexOrThrow("donation_start_time"));
+        String endTimeStr = cursor.getString(cursor.getColumnIndexOrThrow("donation_end_time"));
+
+        if (startTimeStr != null && endTimeStr != null) {
+            donationStartTime = LocalTime.parse(startTimeStr);
+            donationEndTime = LocalTime.parse(endTimeStr);
+        }
+
 
         // Create the DonationEvent object
         DonationEvent event = new DonationEvent(
@@ -167,7 +179,9 @@ public class EventRepository implements IEventRepository {
                 cursor.getLong(cursor.getColumnIndexOrThrow("end_time")),
                 location,
                 bloodTypeTargets,
-                cursor.getString(cursor.getColumnIndexOrThrow("host_id"))
+                cursor.getString(cursor.getColumnIndexOrThrow("host_id")),
+                donationStartTime,
+                donationEndTime
         );
 
         String collectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
@@ -282,6 +296,13 @@ public class EventRepository implements IEventRepository {
                 bloodTypeTargets.put(entry.getKey(), entry.getValue().getTargetAmount());
             }
             values.put("blood_type_targets", bloodTypeTargets.toString());
+
+            if (event.getDonationStartTime() != null) {
+                values.put("donation_start_time", event.getDonationStartTime().toString());
+            }
+            if (event.getDonationEndTime() != null) {
+                values.put("donation_end_time", event.getDonationEndTime().toString());
+            }
 
             // Add blood_collected as empty JSON object - this was missing before
             JSONObject bloodCollected = new JSONObject();
