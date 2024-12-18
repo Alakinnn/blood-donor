@@ -14,6 +14,7 @@ import com.example.blood_donor.server.repositories.IUserRepository;
 import com.example.blood_donor.server.services.interfaces.IAuthService;
 import com.example.blood_donor.server.services.interfaces.IUserService;
 import com.example.blood_donor.ui.manager.AuthManager;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +23,7 @@ public class UserService implements IUserService {
     private final IUserRepository userRepository;
     private final ISessionRepository sessionRepository;
     private final IAuthService authService;
+    private final CacheService cacheService;
 
     public UserService(
             IUserRepository userRepository,
@@ -30,6 +32,7 @@ public class UserService implements IUserService {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.authService = authService;
+        cacheService = ServiceLocator.getCacheService();
     }
 
     @Override
@@ -177,6 +180,27 @@ public class UserService implements IUserService {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         } catch (Exception e) {
             return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public ApiResponse<User> getUserDetails(String userId) {
+        String cacheKey = CacheKeys.userKey(userId);
+        User cached = cacheService.get(cacheKey, User.class);
+        if (cached != null) {
+            return ApiResponse.success(cached);
+        }
+
+        try {
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (!userOpt.isPresent()) {
+                return ApiResponse.error(ErrorCode.DATABASE_ERROR);
+            }
+
+            User user = userOpt.get();
+            cacheService.put(cacheKey, user);
+            return ApiResponse.success(user);
+        } catch (Exception e) {
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 }

@@ -2,6 +2,9 @@ package com.example.blood_donor.ui.fragments;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,7 +21,9 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
+import com.example.blood_donor.server.models.PagedResults;
 import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.services.CacheService;
 import com.example.blood_donor.ui.EventDetailsActivity;
 import com.example.blood_donor.ui.adapters.EventAdapter;
 import com.example.blood_donor.ui.adapters.FunFactAdapter;
@@ -29,6 +34,7 @@ import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class HomeFragment extends Fragment {
     private ViewPager2 funFactsCarousel;
@@ -37,8 +43,12 @@ public class HomeFragment extends Fragment {
     private View filterContainer;
     private EventAdapter eventAdapter;
     private boolean isLoading = false;
+    private boolean hasMoreData = true;
+    private int currentPage = 1;
+    private static final int PAGE_SIZE = 10;
+
     private final EventService eventService;
-    private static final int PAGE_SIZE = 20;
+    private final CacheService cacheService;
 
     private final List<String> funFacts = Arrays.asList(
             "One donation can save up to three lives",
@@ -48,6 +58,7 @@ public class HomeFragment extends Fragment {
 
     public HomeFragment() {
         this.eventService = ServiceLocator.getEventService();
+        this.cacheService = ServiceLocator.getCacheService();
     }
 
     @Override
@@ -63,7 +74,13 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        loadUserName(); // Call it here instead of in onCreateView
+        loadUserName();
+
+        // Reset pagination state
+        currentPage = 1;
+        hasMoreData = true;
+        eventAdapter.clearEvents();
+        loadMoreEvents();
     }
 
     private void initializeViews(View view) {
@@ -87,11 +104,12 @@ public class HomeFragment extends Fragment {
 
     private void setupEventList() {
         eventAdapter = new EventAdapter();
-        eventList.setLayoutManager(new LinearLayoutManager(getContext()));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
+        eventList.setLayoutManager(layoutManager);
         eventList.setAdapter(eventAdapter);
 
         eventAdapter.setOnEventClickListener(event -> {
-            // Store the event data in cache before navigation
+            // Cache event before navigation
             ServiceLocator.getEventService().cacheEventDetails(event);
 
             Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
@@ -99,80 +117,102 @@ public class HomeFragment extends Fragment {
             startActivity(intent);
         });
 
-
-        eventList.addOnScrollListener(new EndlessRecyclerViewScrollListener(
-                (LinearLayoutManager) eventList.getLayoutManager()) {
+        // Add scroll listener for pagination
+        eventList.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
-            public void onLoadMore(int page, int totalItemsCount) {
-                loadMoreEvents(page);
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                if (!isLoading && hasMoreData) {
+                    int visibleItemCount = layoutManager.getChildCount();
+                    int totalItemCount = layoutManager.getItemCount();
+                    int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
+
+                    if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount - 5
+                            && firstVisibleItemPosition >= 0) {
+                        loadMoreEvents();
+                    }
+                }
             }
         });
-
-        loadMoreEvents(0);
     }
-
-    private void setupSearch() {
-        // Implement search functionality
-    }
-
 
     private void loadUserName() {
         String userName = AuthManager.getInstance().getUserName();
-        // Use findViewById on the View obtained from onCreateView
         TextView headerText = requireView().findViewById(R.id.headerText);
         headerText.setText(getString(R.string.hello_user, userName));
     }
 
-    private void loadMoreEvents(int page) {
+    private void loadMoreEvents() {
         if (isLoading) return;
         isLoading = true;
 
+        String cacheKey = "events_page_" + currentPage;
+        PagedResults<EventSummaryDTO> cached = cacheService.get(cacheKey, PagedResults.class);
+        if (cached != null) {
+            handleEventResults(cached.getItems());
+            return;
+        }
+
         EventQueryDTO query = new EventQueryDTO(
-                null, // latitude
-                null, // longitude
-                null, // zoomLevel
-                searchLayout.getEditText().getText().toString(), // searchTerm
-                null, // bloodTypes - implement filter later
-                "date", // sortBy
-                "desc", // sortOrder
-                page + 1, // page number
-                PAGE_SIZE // pageSize
+                null,
+                null,
+                null,
+                searchLayout.getEditText().getText().toString(),
+                null,
+                "date",
+                "desc",
+                currentPage,
+                PAGE_SIZE
         );
 
-        ApiResponse<List<EventSummaryDTO>> response = eventService.getEventSummaries(query);
+        ApiResponse<PagedResults<EventSummaryDTO>> response = eventService.getEventSummaries(query);
         if (response.isSuccess() && response.getData() != null) {
-            requireActivity().runOnUiThread(() -> {
-                eventAdapter.addEvents(response.getData());
-                isLoading = false;
-            });
+            PagedResults<EventSummaryDTO> results = response.getData();
+            cacheService.put(cacheKey, results, TimeUnit.MINUTES.toMillis(5));
+            handleEventResults(results.getItems());
+            hasMoreData = results.getTotalCount() > currentPage * PAGE_SIZE;
         } else {
-            requireActivity().runOnUiThread(() -> {
-                Toast.makeText(getContext(), "Error loading events", Toast.LENGTH_SHORT).show();
-                isLoading = false;
-            });
+            isLoading = false;
+            requireActivity().runOnUiThread(() ->
+                    Toast.makeText(getContext(), "Error loading events", Toast.LENGTH_SHORT).show()
+            );
         }
     }
 
-    private static abstract class EndlessRecyclerViewScrollListener
-            extends RecyclerView.OnScrollListener {
-        private int currentPage = 0;
-        private final LinearLayoutManager layoutManager;
-
-        public EndlessRecyclerViewScrollListener(LinearLayoutManager layoutManager) {
-            this.layoutManager = layoutManager;
-        }
-
-        @Override
-        public void onScrolled(RecyclerView view, int dx, int dy) {
-            int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
-            int totalItemCount = layoutManager.getItemCount();
-
-            if (lastVisibleItem + 5 >= totalItemCount) {
+    private void handleEventResults(List<EventSummaryDTO> events) {
+        requireActivity().runOnUiThread(() -> {
+            eventAdapter.addEvents(events);
+            isLoading = false;
+            hasMoreData = events.size() >= PAGE_SIZE;
+            if (hasMoreData) {
                 currentPage++;
-                onLoadMore(currentPage, totalItemCount);
             }
-        }
+        });
+    }
 
-        public abstract void onLoadMore(int page, int totalItemsCount);
+    private void setupSearch() {
+        // Implement search functionality with debounce
+        searchLayout.getEditText().addTextChangedListener(new TextWatcher() {
+            private Handler handler = new Handler();
+            private Runnable runnable;
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                handler.removeCallbacks(runnable);
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                runnable = () -> {
+                    currentPage = 1;
+                    hasMoreData = true;
+                    eventAdapter.clearEvents();
+                    loadMoreEvents();
+                };
+                handler.postDelayed(runnable, 300); // 300ms debounce delay
+            }
+        });
     }
 }

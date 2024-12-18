@@ -1,7 +1,6 @@
 package com.example.blood_donor.server.services;
 
-import android.os.Build;
-import android.util.Log;
+import android.annotation.SuppressLint;
 
 import com.example.blood_donor.server.dto.events.BloodTypeProgress;
 import com.example.blood_donor.server.dto.events.CreateEventDTO;
@@ -11,8 +10,8 @@ import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.errors.ErrorCode;
+import com.example.blood_donor.server.models.PagedResults;
 import com.example.blood_donor.server.models.donation.RegistrationType;
-import com.example.blood_donor.server.models.event.BloodTypeRequirement;
 import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.location.Location;
 import com.example.blood_donor.server.models.response.ApiResponse;
@@ -21,8 +20,8 @@ import com.example.blood_donor.server.repositories.IEventRepository;
 import com.example.blood_donor.server.repositories.ILocationRepository;
 import com.example.blood_donor.server.repositories.IRegistrationRepository;
 import com.example.blood_donor.server.repositories.IUserRepository;
-import com.example.blood_donor.server.repositories.RegistrationRepository;
 import com.example.blood_donor.server.services.interfaces.IEventService;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -31,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class EventService implements IEventService {
@@ -38,19 +38,21 @@ public class EventService implements IEventService {
     private final ILocationRepository locationRepository;
     private final IUserRepository userRepository;
     private final IRegistrationRepository registrationRepository;
-    private final EventCacheService cacheService;
+    private final EventCacheService eventCacheService;
+    private final CacheService cacheService;
     private static final LocalTime DEFAULT_DONATION_START = LocalTime.of(9, 0);  // 9 AM
     private static final LocalTime DEFAULT_DONATION_END = LocalTime.of(17, 0);   // 5 PM
 
     public EventService(IEventRepository eventRepository,
-                        EventCacheService cacheService,
+                        EventCacheService eventCacheService,
                         ILocationRepository locationRepository,
                         IUserRepository userRepository, IRegistrationRepository registrationRepository) {
         this.eventRepository = eventRepository;
-        this.cacheService = cacheService;
+        this.eventCacheService = eventCacheService;
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.registrationRepository = registrationRepository;
+        this.cacheService = ServiceLocator.getCacheService();
     }
 
     public ApiResponse<DonationEvent> createEvent(String hostId, CreateEventDTO dto) {
@@ -143,103 +145,46 @@ public class EventService implements IEventService {
                 summary.getDonationEndTime()
         );
 
-        cacheService.cacheEventDetails(summary.getEventId(), details);
+        eventCacheService.cacheEventDetails(summary.getEventId(), details);
     }
 
     @Override
-    public ApiResponse<List<EventSummaryDTO>> getEventSummaries(EventQueryDTO query) {
+    public ApiResponse<PagedResults<EventSummaryDTO>> getEventSummaries(EventQueryDTO query) {
+        @SuppressLint("DefaultLocale") String cacheKey = String.format("events_page_%d_size_%d_%s_%s",
+                query.getPage(),
+                query.getPageSize(),
+                query.getSortBy(),
+                query.getSearchTerm() != null ? query.getSearchTerm() : "none"
+        );
+
+        PagedResults<EventSummaryDTO> cached = cacheService.get(cacheKey, PagedResults.class);
+        if (cached != null) {
+            return ApiResponse.success(cached);
+        }
+
         try {
             List<DonationEvent> events = eventRepository.findEvents(query);
+            int totalCount = eventRepository.countEvents(query);
 
             List<EventSummaryDTO> summaries = events.stream()
-                    .map(event -> {
-                        EventSummaryDTO summary = new EventSummaryDTO();
-
-                        // Basic event info
-                        summary.setEventId(event.getEventId());
-                        summary.setTitle(event.getTitle());
-                        summary.setStartTime(event.getStartTime());
-                        summary.setEndTime(event.getEndTime());
-
-                        // Location info
-                        if (event.getLocation() != null) {
-                            summary.setLatitude(event.getLocation().getLatitude());
-                            summary.setLongitude(event.getLocation().getLongitude());
-                            summary.setAddress(event.getLocation().getAddress());
-                        }
-
-                        // Blood requirements
-                        Map<String, BloodTypeRequirement> requirements = event.getBloodRequirements();
-                        List<BloodTypeProgress> bloodProgress = new ArrayList<>();
-
-                        if (requirements != null && !requirements.isEmpty()) {
-                            // Set required blood types
-                            summary.setRequiredBloodTypes(new ArrayList<>(requirements.keySet()));
-
-                            // Calculate totals
-                            double totalGoal = 0;
-                            double totalCollected = 0;
-
-                            // Process each blood type requirement
-                            for (Map.Entry<String, BloodTypeRequirement> entry : requirements.entrySet()) {
-                                BloodTypeRequirement req = entry.getValue();
-                                totalGoal += req.getTargetAmount();
-                                totalCollected += req.getCollectedAmount();
-
-                                // Add to progress list
-                                bloodProgress.add(new BloodTypeProgress(
-                                        req.getTargetAmount(),
-                                        req.getCollectedAmount()
-                                ));
-                            }
-
-                            summary.setBloodGoal(totalGoal);
-                            summary.setCurrentBloodCollected(totalCollected);
-                            summary.setTotalProgress((totalGoal > 0) ?
-                                    (totalCollected / totalGoal) * 100 : 0);
-                        }
-
-                        summary.setBloodProgress(bloodProgress);
-
-                        // Donation schedule
-                        if (event.getDonationStartTime() != null) {
-                            summary.setDonationStartTime(event.getDonationStartTime());
-                        }
-                        if (event.getDonationEndTime() != null) {
-                            summary.setDonationEndTime(event.getDonationEndTime());
-                        }
-
-                        try {
-                            int donorCount = registrationRepository.getRegistrationCount(
-                                    event.getEventId(),
-                                    RegistrationType.DONOR
-                            );
-                            int volunteerCount = registrationRepository.getRegistrationCount(
-                                    event.getEventId(),
-                                    RegistrationType.VOLUNTEER
-                            );
-                            summary.setRegisteredDonors(donorCount);
-                            summary.setRegisteredVolunteers(volunteerCount);
-                        } catch (AppException e) {
-                            Log.e("EventService", "Error getting registration counts", e);
-                        }
-
-                        // Distance if provided
-                        if (event.getDistance() != null) {
-                            summary.setDistance(event.getDistance());
-                        }
-
-                        return summary;
-                    })
+                    .map(this::convertToEventSummary)
                     .collect(Collectors.toList());
 
-            return ApiResponse.success(summaries);
-        } catch (AppException e) {
-            return ApiResponse.error(e.getErrorCode(), e.getMessage());
+            PagedResults<EventSummaryDTO> results = new PagedResults<>(
+                    summaries,
+                    totalCount,
+                    query.getPage(),
+                    query.getPageSize()
+            );
+
+            // Cache with shorter TTL since event list changes more frequently
+            cacheService.put(cacheKey, results, TimeUnit.MINUTES.toMillis(1));
+            return ApiResponse.success(results);
         } catch (Exception e) {
-            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
+
     @Override
     public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
@@ -247,26 +192,14 @@ public class EventService implements IEventService {
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event ID cannot be null");
             }
 
-            // First check cache
-            Optional<EventDetailDTO> cachedEvent = cacheService.getCachedEventDetails(eventId);
-            if (cachedEvent.isPresent()) {
-                EventDetailDTO cached = cachedEvent.get();
-                // Only try to load host details if we have a host ID
-                if (cached.getHostId() != null && (cached.getHostName() == null || cached.getHostPhoneNumber() == null)) {
-                    try {
-                        Optional<User> hostOpt = userRepository.findById(cached.getHostId());
-                        hostOpt.ifPresent(host -> {
-                            cached.setHostName(host.getFullName());
-                            cached.setHostPhoneNumber(host.getPhoneNumber());
-                        });
-                    } catch (AppException e) {
-                        Log.w("EventService", "Could not load host details for cached event", e);
-                    }
-                }
+            // Check main cache first
+            String cacheKey = CacheKeys.eventKey(eventId);
+            EventDetailDTO cached = cacheService.get(cacheKey, EventDetailDTO.class);
+            if (cached != null) {
                 return ApiResponse.success(cached);
             }
 
-            // Load from database with full error logging
+            // Load from database
             Optional<DonationEvent> eventOpt = eventRepository.findById(eventId);
             if (!eventOpt.isPresent()) {
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event not found");
@@ -274,7 +207,7 @@ public class EventService implements IEventService {
 
             DonationEvent event = eventOpt.get();
 
-            // Load host information with null check
+            // Load host information
             String hostId = event.getHostId();
             if (hostId == null) {
                 return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Event has no host information");
@@ -287,7 +220,7 @@ public class EventService implements IEventService {
 
             User host = hostOpt.get();
 
-            // Get registration counts with error handling
+            // Get registration counts
             int donorCount = 0;
             int volunteerCount = 0;
             try {
@@ -299,10 +232,7 @@ public class EventService implements IEventService {
 
             // Convert blood requirements to progress list
             List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
-                    .map(req -> new BloodTypeProgress(
-                            req.getTargetAmount(),
-                            req.getCollectedAmount()
-                    ))
+                    .map(req -> new BloodTypeProgress(req.getTargetAmount(), req.getCollectedAmount()))
                     .collect(Collectors.toList());
 
             // Create full event details
@@ -330,8 +260,8 @@ public class EventService implements IEventService {
                     event.getDonationEndTime()
             );
 
-            // Cache the details
-            cacheService.cacheEventDetails(eventId, details);
+            // Cache the result
+            cacheService.put(cacheKey, details);
 
             return ApiResponse.success(details);
 
@@ -418,28 +348,28 @@ public class EventService implements IEventService {
 
     public ApiResponse<List<EventMarkerDTO>> getEventMarkers(EventQueryDTO query) {
         try {
-            // First get the event summaries
-            ApiResponse<List<EventSummaryDTO>> response = getEventSummaries(query);
+            List<DonationEvent> events = eventRepository.findEvents(query);
 
-            if (!response.isSuccess()) {
-                return ApiResponse.error(response.getErrorCode(), response.getMessage());
-            }
-
-            // Convert EventSummaryDTO to EventMarkerDTO
-            List<EventMarkerDTO> markers = response.getData().stream()
-                    .map(event -> new EventMarkerDTO(
-                            event.getEventId(),
-                            event.getTitle(),
-                            event.getAddress(),
-                            event.getStartTime(),
-                            event.getEndTime(),
-                            event.getRequiredBloodTypes(),
-                            event.getBloodGoal(),
-                            event.getCurrentBloodCollected(),
-                            event.getRegisteredDonors(),
-                            event.getLatitude(),
-                            event.getLongitude()
-                    ))
+            List<EventMarkerDTO> markers = events.stream()
+                    .map(event -> {
+                        try {
+                            return new EventMarkerDTO(
+                                    event.getEventId(),
+                                    event.getTitle(),
+                                    event.getLocation().getAddress(),
+                                    event.getStartTime(),
+                                    event.getEndTime(),
+                                    new ArrayList<>(event.getBloodRequirements().keySet()),
+                                    event.getTotalTargetAmount(),
+                                    event.getTotalCollectedAmount(),
+                                    registrationRepository.getRegistrationCount(event.getEventId(), RegistrationType.DONOR),
+                                    event.getLocation().getLatitude(),
+                                    event.getLocation().getLongitude()
+                            );
+                        } catch (AppException e) {
+                            throw new RuntimeException(e);
+                        }
+                    })
                     .collect(Collectors.toList());
 
             return ApiResponse.success(markers);
@@ -447,4 +377,41 @@ public class EventService implements IEventService {
             return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
+//    TODO: the registratioRepository doesnt have the getUserEvent related stuff
+//    public ApiResponse<PagedResults<EventSummaryDTO>> getUserEventHistory(String userId, int page, int pageSize) {
+//        String cacheKey = String.format("user_%s_history_page_%d", userId, page);
+//
+//        PagedResults<EventSummaryDTO> cached = cacheService.get(cacheKey, PagedResults.class);
+//        if (cached != null) {
+//            return ApiResponse.success(cached);
+//        }
+//
+//        try {
+//            // Get user's event registrations
+//            List<String> eventIds = registrationRepository.getUserEventIds(userId, page, pageSize);
+//            int totalCount = registrationRepository.countUserEvents(userId);
+//
+//            // Get event details for each registration
+//            List<EventSummaryDTO> summaries = eventIds.stream()
+//                    .map(eventId -> {
+//                        Optional<DonationEvent> event = eventRepository.findById(eventId);
+//                        return event.map(this::convertToEventSummary).orElse(null);
+//                    })
+//                    .filter(Objects::nonNull)
+//                    .collect(Collectors.toList());
+//
+//            PagedResults<EventSummaryDTO> results = new PagedResults<>(
+//                    summaries,
+//                    totalCount,
+//                    page,
+//                    pageSize
+//            );
+//
+//            cacheService.put(cacheKey, results, TimeUnit.MINUTES.toMillis(5));
+//            return ApiResponse.success(results);
+//        } catch (Exception e) {
+//            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
+//        }
+//    }
+
 }
