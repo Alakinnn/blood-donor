@@ -101,9 +101,11 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
                 }
             });
 
-            String bloodTypes = "Blood Types Needed: " +
-                    String.join(", ", event.getRequiredBloodTypes());
-            bloodTypesView.setText(bloodTypes);
+            List<String> bloodTypes = event.getRequiredBloodTypes();
+            String bloodTypesText = "Blood Types Needed: " +
+                    (bloodTypes != null && !bloodTypes.isEmpty() ?
+                            String.join(", ", bloodTypes) : "None specified");
+            bloodTypesView.setText(bloodTypesText);
 
             // Add donation hours if available
             if (event.getDonationStartTime() != null && event.getDonationEndTime() != null) {

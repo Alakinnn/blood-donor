@@ -139,6 +139,10 @@ public class DatabaseSeeder {
             Calendar endTime = (Calendar) startTime.clone();
             endTime.add(Calendar.HOUR, 8);
 
+            // Default donation hours (9 AM to 5 PM)
+            String donationStartTime = "09:00";
+            String donationEndTime = "17:00";
+
             // Create blood type targets
             Map<String, Double> bloodTypeTargets = new HashMap<>();
             bloodTypeTargets.put("A+", 10.0 + random.nextDouble() * 20.0);
@@ -161,6 +165,8 @@ public class DatabaseSeeder {
             eventValues.put("host_id", managerIds[random.nextInt(managerIds.length)]);
             eventValues.put("status", determineEventStatus(startTime.getTimeInMillis(), endTime.getTimeInMillis()));
             eventValues.put("location_id", locationId);
+            eventValues.put("donation_start_time", donationStartTime);
+            eventValues.put("donation_end_time", donationEndTime);
             eventValues.put("created_at", System.currentTimeMillis());
             eventValues.put("updated_at", System.currentTimeMillis());
 
