@@ -19,9 +19,18 @@ public class EventSummaryDTO {
     private List<BloodTypeProgress> bloodProgress;
     private double totalProgress;private String address;
     private int registeredDonors;
+    private int registeredVolunteers;
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+    public int getRegisteredVolunteers() {
+        return registeredVolunteers;
+    }
+
+    public void setRegisteredVolunteers(int registeredVolunteers) {
+        this.registeredVolunteers = registeredVolunteers;
+    }
+
 
     public int getRegisteredDonors() { return registeredDonors; }
     public void setRegisteredDonors(int registeredDonors) { this.registeredDonors = registeredDonors; }

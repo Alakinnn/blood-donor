@@ -134,72 +134,62 @@ public class EventRepository implements IEventRepository {
     }
 
     private DonationEvent cursorToEvent(Cursor cursor) {
-        // First create the Location object since DonationEvent needs it
-        Location location = new Location.Builder()
-                .locationId(cursor.getString(cursor.getColumnIndexOrThrow("location_id")))
-                .address(cursor.getString(cursor.getColumnIndexOrThrow("address")))
-                .coordinates(
-                        cursor.getDouble(cursor.getColumnIndexOrThrow("latitude")),
-                        cursor.getDouble(cursor.getColumnIndexOrThrow("longitude"))
-                )
-                .description(cursor.getString(cursor.getColumnIndexOrThrow("description")))
-                .build();
-
-        // Convert blood types string from DB to List
-        Map<String, Double> bloodTypeTargets = new HashMap<>();
-        // Parse blood_type_targets from JSON string
-        String targetsJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_type_targets"));
         try {
-            JSONObject targets = new JSONObject(targetsJson);
-            Iterator<String> keys = targets.keys();
-            while(keys.hasNext()) {
-                String type = keys.next();
-                bloodTypeTargets.put(type, targets.getDouble(type));
+            // Debug log the raw JSON data
+            String bloodTypeTargetsJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_type_targets"));
+            String bloodCollectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
+            Log.d("EventRepository", "Blood type targets JSON: " + bloodTypeTargetsJson);
+            Log.d("EventRepository", "Blood collected JSON: " + bloodCollectedJson);
+
+            Map<String, Double> bloodTypeTargets = new HashMap<>();
+            if (bloodTypeTargetsJson != null) {
+                JSONObject targets = new JSONObject(bloodTypeTargetsJson);
+                Iterator<String> keys = targets.keys();
+                while(keys.hasNext()) {
+                    String type = keys.next();
+                    bloodTypeTargets.put(type, targets.getDouble(type));
+                }
             }
-        } catch (JSONException e) {
-            // Handle error
-        }
 
-        LocalTime donationStartTime = null;
-        LocalTime donationEndTime = null;
+            Location location = new Location.Builder()
+                    .locationId(cursor.getString(cursor.getColumnIndexOrThrow("location_id")))
+                    .address(cursor.getString(cursor.getColumnIndexOrThrow("address")))
+                    .coordinates(
+                            cursor.getDouble(cursor.getColumnIndexOrThrow("latitude")),
+                            cursor.getDouble(cursor.getColumnIndexOrThrow("longitude"))
+                    )
+                    .description(cursor.getString(cursor.getColumnIndexOrThrow("description")))
+                    .build();
 
-        String startTimeStr = cursor.getString(cursor.getColumnIndexOrThrow("donation_start_time"));
-        String endTimeStr = cursor.getString(cursor.getColumnIndexOrThrow("donation_end_time"));
+            DonationEvent event = new DonationEvent(
+                    cursor.getString(cursor.getColumnIndexOrThrow("id")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("description")),
+                    cursor.getLong(cursor.getColumnIndexOrThrow("start_time")),
+                    cursor.getLong(cursor.getColumnIndexOrThrow("end_time")),
+                    location,
+                    bloodTypeTargets,
+                    cursor.getString(cursor.getColumnIndexOrThrow("host_id")),
+                    LocalTime.parse(cursor.getString(cursor.getColumnIndexOrThrow("donation_start_time"))),
+                    LocalTime.parse(cursor.getString(cursor.getColumnIndexOrThrow("donation_end_time")))
+            );
 
-        if (startTimeStr != null && endTimeStr != null) {
-            donationStartTime = LocalTime.parse(startTimeStr);
-            donationEndTime = LocalTime.parse(endTimeStr);
-        }
-
-
-        // Create the DonationEvent object
-        DonationEvent event = new DonationEvent(
-                cursor.getString(cursor.getColumnIndexOrThrow("id")),
-                cursor.getString(cursor.getColumnIndexOrThrow("title")),
-                cursor.getString(cursor.getColumnIndexOrThrow("description")),
-                cursor.getLong(cursor.getColumnIndexOrThrow("start_time")),
-                cursor.getLong(cursor.getColumnIndexOrThrow("end_time")),
-                location,
-                bloodTypeTargets,
-                cursor.getString(cursor.getColumnIndexOrThrow("host_id")),
-                donationStartTime,
-                donationEndTime
-        );
-
-        String collectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
-        try {
-            JSONObject collected = new JSONObject(collectedJson);
-            Iterator<String> keys = collected.keys();
-            while(keys.hasNext()) {
-                String type = keys.next();
-                double amount = collected.getDouble(type);
-                event.recordDonation(type, amount);
+            // Parse and set blood collected amounts
+            String collectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
+            if (collectedJson != null) {
+                JSONObject collected = new JSONObject(collectedJson);
+                Iterator<String> keys = collected.keys();
+                while(keys.hasNext()) {
+                    String type = keys.next();
+                    event.recordDonation(type, collected.getDouble(type));
+                }
             }
-        } catch (JSONException e) {
-            // Handle error
-        }
 
-        return event;
+            return event;
+        } catch (Exception e) {
+            Log.e("EventRepository", "Error converting cursor to event", e);
+            throw new RuntimeException("Error parsing event data", e);
+        }
     }
 
     @Override

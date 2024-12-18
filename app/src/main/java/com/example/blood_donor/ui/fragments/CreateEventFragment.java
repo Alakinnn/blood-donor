@@ -248,8 +248,6 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
         // Collect blood type requirements
         Map<String, Double> bloodTypeTargets = new HashMap<>();
         LinearLayout container = requireView().findViewById(R.id.bloodTypeContainer);
-        boolean hasAtLeastOneBloodType = false;
-
         for (int i = 0; i < container.getChildCount(); i++) {
             View child = container.getChildAt(i);
             TextView typeLabel = child.findViewById(R.id.bloodTypeLabel);
@@ -257,54 +255,52 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
             String bloodType = typeLabel.getText().toString();
             String amount = amountInput.getText().toString().trim();
 
-            // Default to 0.0 for empty or zero amounts
-            double value = 0.0;
             if (!amount.isEmpty()) {
                 try {
-                    value = Double.parseDouble(amount);
-                    if (value < 0) {
-                        Toast.makeText(getContext(), "Blood amounts cannot be negative", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+                    double value = Double.parseDouble(amount);
                     if (value > 0) {
-                        hasAtLeastOneBloodType = true;
+                        bloodTypeTargets.put(bloodType, value);
                     }
                 } catch (NumberFormatException e) {
-                    Toast.makeText(getContext(), "Please enter valid numbers for blood amounts", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(),
+                            "Please enter valid numbers for blood amounts",
+                            Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
-            bloodTypeTargets.put(bloodType, value);
         }
 
-        // Validate that at least one blood type is needed
-        if (!hasAtLeastOneBloodType) {
-            Toast.makeText(getContext(), "Please specify at least one required blood type", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Create event DTO and continue with event creation...
         CreateEventDTO eventDTO = new CreateEventDTO(
-                title, description,
+                title,
+                description,
                 startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
                 endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
                 getTotalBloodGoal(bloodTypeTargets),
-                selectedAddress, selectedLocation.latitude, selectedLocation.longitude,
-                "", startTime, endTime
+                selectedAddress,
+                selectedLocation.latitude,
+                selectedLocation.longitude,
+                "",  // Location description
+                startTime,
+                endTime
         );
         eventDTO.setBloodTypeTargets(bloodTypeTargets);
 
-        // Create event using EventService...
         String userId = AuthManager.getInstance().getUserId();
-        ApiResponse<DonationEvent> response = ServiceLocator.getEventService().createEvent(userId, eventDTO);
+        ApiResponse<DonationEvent> response = ServiceLocator.getEventService()
+                .createEvent(userId, eventDTO);
 
         if (response.isSuccess()) {
-            Toast.makeText(getContext(), "Event created successfully", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(),
+                    "Event created successfully",
+                    Toast.LENGTH_SHORT).show();
             navigateToMap(response.getData());
         } else {
-            Toast.makeText(getContext(), response.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(),
+                    response.getMessage(),
+                    Toast.LENGTH_SHORT).show();
         }
     }
+
     private double getTotalBloodGoal(Map<String, Double> bloodTypeTargets) {
         return bloodTypeTargets.values().stream()
                 .mapToDouble(Double::doubleValue)
