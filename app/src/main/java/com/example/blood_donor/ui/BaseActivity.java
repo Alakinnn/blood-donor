@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import com.example.blood_donor.R;
+import com.example.blood_donor.ui.fragments.CreateEventFragment;
 import com.example.blood_donor.ui.fragments.HomeFragment;
 import com.example.blood_donor.ui.fragments.MapFragment;
 import com.example.blood_donor.ui.fragments.ProfileFragment;
@@ -51,8 +52,8 @@ public class BaseActivity extends AppCompatActivity {
                 fragment = new ProfileFragment();
             } else if (itemId == R.id.nav_create_event &&
                     AuthManager.getInstance().getUserType() == UserType.SITE_MANAGER) {
-                // Launch CreateEventActivity
-                startActivity(new Intent(this, CreateEventActivity.class));
+                fragment = new CreateEventFragment();
+                loadFragment(fragment);
                 return true;
             }
 
