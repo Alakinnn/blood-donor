@@ -23,6 +23,7 @@ import com.google.android.material.textview.MaterialTextView;
 import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class EventDetailsActivity extends AppCompatActivity {
@@ -87,63 +88,72 @@ public class EventDetailsActivity extends AppCompatActivity {
         findViewById(R.id.backButton).setOnClickListener(v -> finish());
     }
 
-    private void loadEventDetails() {
-        String userId = AuthManager.getInstance().getUserId();
-
-        // Add logging
-        Log.d("EventDetails", "Loading event with ID: " + eventId);
-
-        try {
-            ApiResponse<EventDetailDTO> response = eventService.getEventDetails(eventId, userId);
-
-            if (response.isSuccess() && response.getData() != null) {
-                eventDetails = response.getData();
-                updateUI();
-            } else {
-                // Handle error gracefully instead of crashing
-                Toast.makeText(this, "Error loading event: " + response.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-                finish();
-            }
-        } catch (Exception e) {
-            Log.e("EventDetails", "Error loading event details", e);
-            Toast.makeText(this, "Error loading event details",
-                    Toast.LENGTH_SHORT).show();
-            finish();
-        }
-    }
-
     private void updateUI() {
-        titleView.setText(eventDetails.getTitle());
-        dateTimeView.setText(String.format("%s - %s",
-                dateFormat.format(new Date(eventDetails.getStartTime())),
-                dateFormat.format(new Date(eventDetails.getEndTime()))
-        ));
-        addressView.setText(eventDetails.getAddress());
-        descriptionView.setText(eventDetails.getDescription());
+        if (eventDetails == null) {
+            Log.e("EventDetails", "Attempted to update UI with null event details");
+            Toast.makeText(this, "Error loading event details", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
-        hostInfoView.setText(String.format("Hosted by %s\nContact: %s",
-                eventDetails.getHostName(),
-                eventDetails.getHostPhoneNumber()
-        ));
+        // Set title with null check
+        titleView.setText(eventDetails.getTitle() != null ?
+                eventDetails.getTitle() : "Untitled Event");
 
-        requiredBloodTypesView.setText(String.join(", ",
-                eventDetails.getRequiredBloodTypes()));
+        // Format and set date/time with null checks
+        String dateTimeText = String.format("%s - %s",
+                formatDate(eventDetails.getStartTime()),
+                formatDate(eventDetails.getEndTime()));
+        dateTimeView.setText(dateTimeText);
 
+        // Set address with null check
+        addressView.setText(eventDetails.getAddress() != null ?
+                eventDetails.getAddress() : "Location not specified");
+
+        // Set description with null check
+        descriptionView.setText(eventDetails.getDescription() != null ?
+                eventDetails.getDescription() : "No description available");
+
+        // Set host info with null checks
+        String hostInfo = "Hosted by ";
+        if (eventDetails.getHostName() != null) {
+            hostInfo += eventDetails.getHostName();
+            if (eventDetails.getHostPhoneNumber() != null) {
+                hostInfo += "\nContact: " + eventDetails.getHostPhoneNumber();
+            }
+        } else {
+            hostInfo += "Unknown Host";
+        }
+        hostInfoView.setText(hostInfo);
+
+        // Handle blood types with null check
+        List<String> bloodTypes = eventDetails.getRequiredBloodTypes();
+        String bloodTypeText = "Required Blood Types: ";
+        if (bloodTypes != null && !bloodTypes.isEmpty()) {
+            bloodTypeText += String.join(", ", bloodTypes);
+        } else {
+            bloodTypeText += "None specified";
+        }
+        requiredBloodTypesView.setText(bloodTypeText);
+
+        // Set counts with null checks and default values
         donorCountView.setText(String.format(Locale.getDefault(),
                 "%d donors registered", eventDetails.getDonorCount()));
         volunteerCountView.setText(String.format(Locale.getDefault(),
                 "%d volunteers registered", eventDetails.getVolunteerCount()));
 
-        // Set up progress
-        double progress = (eventDetails.getCurrentBloodCollected() /
-                eventDetails.getBloodGoal()) * 100;
+        // Set progress with null checks and bounds checking
+        double progress = 0;
+        if (eventDetails.getBloodGoal() > 0) {
+            progress = (eventDetails.getCurrentBloodCollected() /
+                    eventDetails.getBloodGoal()) * 100;
+        }
         progressBar.setProgress((int) progress);
         progressText.setText(String.format(Locale.getDefault(),
                 "%.1f%% of %.1fL goal",
-                progress, eventDetails.getBloodGoal()
-        ));
-        // Add donation hours display
+                progress, eventDetails.getBloodGoal()));
+
+        // Handle donation hours display with null checks
         if (eventDetails.getDonationStartTime() != null &&
                 eventDetails.getDonationEndTime() != null) {
             String donationHours = String.format("Donation Hours: %s - %s",
@@ -155,12 +165,41 @@ public class EventDetailsActivity extends AppCompatActivity {
             MaterialTextView donationHoursView = findViewById(R.id.donationHours);
             donationHoursView.setText(donationHours);
             donationHoursView.setVisibility(View.VISIBLE);
+        } else {
+            findViewById(R.id.donationHours).setVisibility(View.GONE);
         }
 
-        // Update blood types display
-        String bloodTypes = String.join(", ", eventDetails.getRequiredBloodTypes());
-        requiredBloodTypesView.setText("Required Blood Types: " + bloodTypes);
         setupActionButton();
+    }
+
+    private String formatDate(long timeInMillis) {
+        if (timeInMillis <= 0) {
+            return "Time not specified";
+        }
+        return dateFormat.format(new Date(timeInMillis));
+    }
+
+    private void loadEventDetails() {
+        String userId = AuthManager.getInstance().getUserId();
+        Log.d("EventDetails", "Loading event with ID: " + eventId);
+
+        try {
+            ApiResponse<EventDetailDTO> response = eventService.getEventDetails(eventId, userId);
+
+            if (response.isSuccess() && response.getData() != null) {
+                eventDetails = response.getData();
+                updateUI();
+            } else {
+                String errorMessage = response.getMessage() != null ?
+                        response.getMessage() : "Error loading event details";
+                Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        } catch (Exception e) {
+            Log.e("EventDetails", "Error loading event details", e);
+            Toast.makeText(this, "Error loading event details", Toast.LENGTH_SHORT).show();
+            finish();
+        }
     }
 
     private void setupActionButton() {

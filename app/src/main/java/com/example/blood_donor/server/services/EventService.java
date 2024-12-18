@@ -116,6 +116,35 @@ public class EventService implements IEventService {
                 .contains(bloodType);
     }
 
+    public void cacheEventDetails(EventSummaryDTO summary) {
+        // Convert summary to full event details
+        EventDetailDTO details = new EventDetailDTO(
+                summary.getEventId(),
+                summary.getTitle(),
+                null, // Description will be loaded from DB
+                summary.getStartTime(),
+                summary.getEndTime(),
+                null, // Status will be determined from times
+                null, // Host info will be loaded
+                null, // Host name will be loaded
+                null, // Host phone will be loaded
+                summary.getAddress(),
+                summary.getLatitude(),
+                summary.getLongitude(),
+                null, // Location description will be loaded
+                summary.getRequiredBloodTypes(),
+                summary.getBloodGoal(),
+                summary.getCurrentBloodCollected(),
+                0, // Donor count will be loaded
+                0, // Volunteer count will be loaded
+                summary.getBloodProgress(),
+                summary.getDonationStartTime(),
+                summary.getDonationEndTime()
+        );
+
+        cacheService.cacheEventDetails(summary.getEventId(), details);
+    }
+
     @Override
     public ApiResponse<List<EventSummaryDTO>> getEventSummaries(EventQueryDTO query) {
         try {
@@ -166,38 +195,68 @@ public class EventService implements IEventService {
     @Override
     public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
+            if (eventId == null) {
+                Log.e("EventService", "Attempted to get details for null event ID");
+                return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event ID cannot be null");
+            }
+
             Log.d("EventService", "Fetching event with ID: " + eventId);
 
-            DonationEvent event = cacheService.getCachedEventDetails(eventId)
-                    .orElseGet(() -> {
-                        try {
-                            Optional<DonationEvent> eventOpt = eventRepository.findById(eventId);
-                            if (!eventOpt.isPresent()) {
-                                Log.e("EventService", "Event not found in database");
-                                throw new RuntimeException(new AppException(
-                                        ErrorCode.INVALID_INPUT,
-                                        "Event not found"
-                                ));
-                            }
-                            return eventOpt.get();
-                        } catch (AppException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+            // First check cache
+            Optional<EventDetailDTO> cachedEvent = cacheService.getCachedEventDetails(eventId);
+            if (cachedEvent.isPresent()) {
+                EventDetailDTO cached = cachedEvent.get();
+                // Only try to load host details if we have a host ID
+                if (cached.getHostId() != null && (cached.getHostName() == null || cached.getHostPhoneNumber() == null)) {
+                    try {
+                        Optional<User> hostOpt = userRepository.findById(cached.getHostId());
+                        hostOpt.ifPresent(host -> {
+                            cached.setHostName(host.getFullName());
+                            cached.setHostPhoneNumber(host.getPhoneNumber());
+                        });
+                    } catch (AppException e) {
+                        Log.w("EventService", "Could not load host details for cached event", e);
+                    }
+                }
+                return ApiResponse.success(cached);
+            }
 
-            Log.d("EventService", "Found event: " + event.getTitle());
+            // Load from database with full error logging
+            Optional<DonationEvent> eventOpt = eventRepository.findById(eventId);
+            if (!eventOpt.isPresent()) {
+                Log.w("EventService", "Event not found in database: " + eventId);
+                return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event not found");
+            }
 
-            User host = userRepository.findById(event.getHostId())
-                    .orElseThrow(() -> {
-                        Log.e("EventService", "Host not found for event: " + eventId);
-                        return new AppException(ErrorCode.DATABASE_ERROR, "Host not found");
-                    });
+            DonationEvent event = eventOpt.get();
 
-            Log.d("EventService", "Found host: " + host.getFullName());
+            // Load host information with null check
+            String hostId = event.getHostId();
+            if (hostId == null) {
+                Log.w("EventService", "Event has no host ID: " + eventId);
+                return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Event has no host information");
+            }
 
-            int donorCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.DONOR);
-            int volunteerCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
+            Optional<User> hostOpt = userRepository.findById(hostId);
+            if (!hostOpt.isPresent()) {
+                Log.w("EventService", "Host not found for event: " + eventId + ", host ID: " + hostId);
+                return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Host information not found");
+            }
 
+            User host = hostOpt.get();
+
+            // Get registration counts with error handling
+            int donorCount = 0;
+            int volunteerCount = 0;
+            try {
+                donorCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.DONOR);
+                volunteerCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
+            } catch (AppException e) {
+                Log.w("EventService", "Error getting registration counts", e);
+                // Continue with 0 counts rather than failing
+            }
+
+            // Convert blood requirements to progress list
             List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
                     .map(req -> new BloodTypeProgress(
                             req.getTargetAmount(),
@@ -205,7 +264,8 @@ public class EventService implements IEventService {
                     ))
                     .collect(Collectors.toList());
 
-            EventDetailDTO dto = new EventDetailDTO(
+            // Create full event details
+            EventDetailDTO details = new EventDetailDTO(
                     event.getEventId(),
                     event.getTitle(),
                     event.getDescription(),
@@ -225,16 +285,22 @@ public class EventService implements IEventService {
                     donorCount,
                     volunteerCount,
                     bloodProgress,
-                    getDonationStartTime(event),
-                    getDonationEndTime(event)
+                    event.getDonationStartTime(),
+                    event.getDonationEndTime()
             );
 
-            Log.d("EventService", "Successfully created DTO for event: " + eventId);
-            return ApiResponse.success(dto);
+            // Cache the details
+            cacheService.cacheEventDetails(eventId, details);
+
+            Log.d("EventService", "Successfully created event details for: " + eventId);
+            return ApiResponse.success(details);
 
         } catch (AppException e) {
-            Log.e("EventService", "Error getting event details", e);
+            Log.e("EventService", "Error getting event details: " + e.getMessage(), e);
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
+        } catch (Exception e) {
+            Log.e("EventService", "Unexpected error getting event details", e);
+            return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
         }
     }
     // Helper methods for donation hours

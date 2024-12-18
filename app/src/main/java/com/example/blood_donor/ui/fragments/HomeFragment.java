@@ -91,11 +91,11 @@ public class HomeFragment extends Fragment {
         eventList.setAdapter(eventAdapter);
 
         eventAdapter.setOnEventClickListener(event -> {
-            String eventId = event.getEventId();
-            Log.d("HomeFragment", "Opening event details with ID: " + eventId);
+            // Store the event data in cache before navigation
+            ServiceLocator.getEventService().cacheEventDetails(event);
 
             Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
-            intent.putExtra("eventId", eventId);
+            intent.putExtra("eventId", event.getEventId());
             startActivity(intent);
         });
 

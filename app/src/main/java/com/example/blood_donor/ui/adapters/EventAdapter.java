@@ -53,7 +53,9 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     public int getItemCount() {
         return events.size();
     }
-
+    public EventSummaryDTO getEvent(int position) {
+        return events.get(position);
+    }
     public void addEvents(List<EventSummaryDTO> newEvents) {
         for (EventSummaryDTO event : newEvents) {
             Log.d("EventAdapter", "Adding event: " + event.getEventId() + " - " + event.getTitle());
@@ -101,7 +103,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
 
             detailsButton.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onEventClick(event);
+                    listener.onEventClick(events.get(getAdapterPosition()));
                 }
             });
 

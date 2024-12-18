@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import android.util.Log;
 
 import com.example.blood_donor.server.database.DatabaseHelper;
 import com.example.blood_donor.server.errors.AppException;
@@ -94,6 +95,11 @@ public class UserRepository implements IUserRepository {
 
     @Override
     public Optional<User> findById(String id) throws AppException {
+        if (id == null) {
+            Log.w("UserRepository", "Attempted to find user with null ID");
+            return Optional.empty();
+        }
+
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
@@ -114,6 +120,7 @@ public class UserRepository implements IUserRepository {
             return Optional.empty();
 
         } catch (SQLiteException e) {
+            Log.e("UserRepository", "Database error finding user with ID: " + id, e);
             throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
         } finally {
             if (cursor != null) {
