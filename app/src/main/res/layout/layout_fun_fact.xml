@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.BloodDonor.CardView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_margin="8dp">
@@ -10,21 +11,27 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="16dp"
 
-        <TextView
+>
+
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/funFactTitle"
+            style="@style/TextAppearance.BloodDonor.Headline2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAlignment="center"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textColor="@color/colorPrimary"/>
 
-        <TextView
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/funFactContent"
+            style="@style/TextAppearance.BloodDonor.Body1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textAlignment="center" />
+            android:textAlignment="center"
+            android:textColor="@color/textPrimary"/>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
+
+    <!--        android:background="@drawable/fun_fact_gradient"-->

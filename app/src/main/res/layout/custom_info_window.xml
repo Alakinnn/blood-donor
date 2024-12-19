@@ -2,32 +2,32 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/info_window_background"
+    android:background="@color/colorBackground"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="12dp"
+    android:elevation="4dp">
 
-    <TextView
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/title"
+        style="@style/TextAppearance.BloodDonor.Body1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="14sp"
         android:textStyle="bold"
-        android:textColor="@android:color/black"/>
+        android:textColor="@color/textPrimary"/>
 
-    <TextView
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/snippet"
+        style="@style/TextAppearance.BloodDonor.Body2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="12sp"
         android:layout_marginTop="4dp"
-        android:textColor="@android:color/darker_gray"/>
+        android:textColor="@color/textSecondary"/>
 
-    <TextView
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/progress"
+        style="@style/TextAppearance.BloodDonor.Body2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="12sp"
         android:layout_marginTop="4dp"
         android:textColor="@color/colorPrimary"/>
-
 </LinearLayout>

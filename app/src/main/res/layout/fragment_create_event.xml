@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -15,10 +17,9 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Title -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/titleLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                style="@style/Widget.BloodDonor.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp">
@@ -27,13 +28,13 @@
                     android:id="@+id/titleInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Event Title" />
+                    android:hint="Event Title"
+                    style="@style/TextAppearance.BloodDonor.Body1"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Description -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/descriptionLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                style="@style/Widget.BloodDonor.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp">
@@ -43,6 +44,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="Description"
+                    style="@style/TextAppearance.BloodDonor.Body1"
                     android:inputType="textMultiLine"
                     android:minLines="3" />
             </com.google.android.material.textfield.TextInputLayout>
@@ -55,7 +57,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/startDateButton"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.BloodDonor.Button"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
@@ -64,7 +66,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/endDateButton"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.BloodDonor.Button"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
@@ -81,7 +83,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/startTimeButton"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.BloodDonor.Button"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="8dp"
@@ -90,7 +92,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/endTimeButton"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.BloodDonor.Button"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
@@ -99,15 +101,17 @@
             </LinearLayout>
 
             <!-- Blood Type Requirements -->
-            <TextView
+            <com.google.android.material.textview.MaterialTextView
+                style="@style/TextAppearance.BloodDonor.Body1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp"
                 android:text="Blood Type Requirements"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:textColor="@color/textPrimary"/>
 
-            <!-- Dynamic blood type input fields will be added here -->
+            <!-- Dynamic blood type input fields container -->
             <LinearLayout
                 android:id="@+id/bloodTypeContainer"
                 android:layout_width="match_parent"
@@ -117,10 +121,10 @@
             <!-- Location Selection -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/mapPreviewCard"
+                style="@style/Widget.BloodDonor.CardView"
                 android:layout_width="match_parent"
                 android:layout_height="200dp"
-                android:layout_marginTop="24dp"
-                app:cardElevation="4dp">
+                android:layout_marginTop="24dp">
 
                 <FrameLayout
                     android:id="@+id/mapContainer"
@@ -129,6 +133,7 @@
 
                 <TextView
                     android:id="@+id/locationText"
+                    style="@style/TextAppearance.BloodDonor.Body1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom"
@@ -140,6 +145,7 @@
             <!-- Create Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/createButton"
+                style="@style/Widget.BloodDonor.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
