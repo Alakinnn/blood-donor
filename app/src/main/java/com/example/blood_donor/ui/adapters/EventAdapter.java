@@ -11,7 +11,14 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.blood_donor.R;
+import com.example.blood_donor.server.dto.events.EventDetailDTO;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
+import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.services.CacheKeys;
+import com.example.blood_donor.server.services.CacheService;
+import com.example.blood_donor.server.services.EventService;
+import com.example.blood_donor.ui.manager.AuthManager;
+import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 
@@ -25,6 +32,10 @@ import java.util.Locale;
 public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHolder> {
     private final List<EventSummaryDTO> events = new ArrayList<>();
     private OnEventClickListener listener;
+    private final EventService eventService;
+    public EventAdapter() {
+        this.eventService = ServiceLocator.getEventService();
+    }
     private static final SimpleDateFormat dateFormat =
             new SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault());
 
@@ -46,7 +57,27 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
 
     @Override
     public void onBindViewHolder(@NonNull EventViewHolder holder, int position) {
-        holder.bind(events.get(position));
+        EventSummaryDTO event = events.get(position);
+        holder.bind(event);
+
+        // Cache the full event details before navigation
+        holder.detailsButton.setOnClickListener(v -> {
+            if (listener != null) {
+                // Pre-cache event details before navigation
+                ApiResponse<EventDetailDTO> response = eventService.getEventDetails(
+                        event.getEventId(),
+                        AuthManager.getInstance().getUserId()
+                );
+
+                if (response.isSuccess() && response.getData() != null) {
+                    // Cache the event details
+                    CacheService cacheService = ServiceLocator.getCacheService();
+                    cacheService.put(CacheKeys.eventKey(event.getEventId()), response.getData());
+                }
+
+                listener.onEventClick(event);
+            }
+        });
     }
 
     @Override

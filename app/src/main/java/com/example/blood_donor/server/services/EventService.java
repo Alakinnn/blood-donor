@@ -1,6 +1,7 @@
 package com.example.blood_donor.server.services;
 
 import android.annotation.SuppressLint;
+import android.util.Log;
 
 import com.example.blood_donor.server.dto.events.BloodTypeProgress;
 import com.example.blood_donor.server.dto.events.CreateEventDTO;
@@ -189,6 +190,7 @@ public class EventService implements IEventService {
     public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
             if (eventId == null) {
+                Log.e("EventService", "Event ID cannot be null");
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event ID cannot be null");
             }
 
@@ -196,12 +198,17 @@ public class EventService implements IEventService {
             String cacheKey = CacheKeys.eventKey(eventId);
             EventDetailDTO cached = cacheService.get(cacheKey, EventDetailDTO.class);
             if (cached != null) {
+                Log.d("EventService", "Cache hit for event: " + eventId);
                 return ApiResponse.success(cached);
             }
+            Log.d("EventService", "Cache miss for event: " + eventId + ", checking database...");
 
             // Load from database
             Optional<DonationEvent> eventOpt = eventRepository.findById(eventId);
+            Log.d("EventService", "Database lookup for event " + eventId + ": found=" + eventOpt.isPresent());
+
             if (!eventOpt.isPresent()) {
+                Log.e("EventService", "Event not found in database: " + eventId);
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event not found");
             }
 
@@ -210,11 +217,13 @@ public class EventService implements IEventService {
             // Load host information
             String hostId = event.getHostId();
             if (hostId == null) {
+                Log.e("EventService", "Event has no host information: " + eventId);
                 return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Event has no host information");
             }
 
             Optional<User> hostOpt = userRepository.findById(hostId);
             if (!hostOpt.isPresent()) {
+                Log.e("EventService", "Host information not found for event: " + eventId + ", hostId: " + hostId);
                 return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Host information not found");
             }
 
@@ -227,6 +236,7 @@ public class EventService implements IEventService {
                 donorCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.DONOR);
                 volunteerCount = registrationRepository.getRegistrationCount(eventId, RegistrationType.VOLUNTEER);
             } catch (AppException e) {
+                Log.w("EventService", "Error getting registration counts for event: " + eventId, e);
                 // Continue with 0 counts rather than failing
             }
 
@@ -262,15 +272,19 @@ public class EventService implements IEventService {
 
             // Cache the result
             cacheService.put(cacheKey, details);
+            Log.d("EventService", "Successfully loaded and cached event details for: " + eventId);
 
             return ApiResponse.success(details);
 
         } catch (AppException e) {
+            Log.e("EventService", "AppException while getting event details: " + eventId, e);
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
         } catch (Exception e) {
+            Log.e("EventService", "Unexpected error getting event details: " + eventId, e);
             return ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
         }
     }
+
     // Helper methods for donation hours
     private LocalTime getDonationStartTime(DonationEvent event) {
         return event.getDonationStartTime() != null ?

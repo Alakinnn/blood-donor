@@ -109,11 +109,15 @@ public class HomeFragment extends Fragment {
         eventList.setAdapter(eventAdapter);
 
         eventAdapter.setOnEventClickListener(event -> {
-            // Cache event before navigation
+            // Let's add logging to debug
+            Log.d("HomeFragment", "Clicked event ID: " + event.getEventId());
+
+            // Cache event details before navigation
             ServiceLocator.getEventService().cacheEventDetails(event);
 
             Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
             intent.putExtra("eventId", event.getEventId());
+            Log.d("HomeFragment", "Navigating to details with ID: " + event.getEventId());
             startActivity(intent);
         });
 
@@ -144,6 +148,10 @@ public class HomeFragment extends Fragment {
     private void loadMoreEvents() {
         if (isLoading) return;
         isLoading = true;
+
+        if (currentPage == 1) {
+            ServiceLocator.getCacheService().clear();
+        }
 
         String cacheKey = "events_page_" + currentPage;
         PagedResults<EventSummaryDTO> cached = cacheService.get(cacheKey, PagedResults.class);

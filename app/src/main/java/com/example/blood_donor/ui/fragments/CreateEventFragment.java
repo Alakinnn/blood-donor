@@ -2,9 +2,11 @@ package com.example.blood_donor.ui.fragments;
 
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.Intent;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,8 +19,12 @@ import androidx.fragment.app.Fragment;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.CreateEventDTO;
+import com.example.blood_donor.server.dto.events.EventDetailDTO;
 import com.example.blood_donor.server.models.event.DonationEvent;
+import com.example.blood_donor.server.models.location.Location;
 import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.services.CacheKeys;
+import com.example.blood_donor.ui.EventDetailsActivity;
 import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.gms.maps.GoogleMap;
@@ -36,12 +42,14 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 public class CreateEventFragment extends Fragment implements OnMapReadyCallback {
     private GoogleMap map;
@@ -211,6 +219,8 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
         String title = ((TextInputEditText) requireView().findViewById(R.id.titleInput)).getText().toString();
         String description = ((TextInputEditText) requireView().findViewById(R.id.descriptionInput)).getText().toString();
 
+        Log.d("CreateEvent", "Creating event with title: " + title);
+
         // Basic field validation
         if (title.isEmpty() || description.isEmpty() || selectedLocation == null ||
                 startDate == 0 || endDate == 0 || startTime == null || endTime == null) {
@@ -230,74 +240,92 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
             return;
         }
 
-        // Create timestamps by combining dates and times
-        LocalDateTime startDateTime = LocalDateTime.of(
-                Instant.ofEpochMilli(startDate).atZone(ZoneId.systemDefault()).toLocalDate(),
-                startTime
-        );
-        LocalDateTime endDateTime = LocalDateTime.of(
-                Instant.ofEpochMilli(endDate).atZone(ZoneId.systemDefault()).toLocalDate(),
-                endTime
-        );
+        try {
+            // Create location with new UUID
+            Location location = new Location.Builder()
+                    .locationId(UUID.randomUUID().toString())
+                    .address(selectedAddress)
+                    .coordinates(selectedLocation.latitude, selectedLocation.longitude)
+                    .description("Location selected by event creator")
+                    .build();
 
-        if (endDateTime.isBefore(startDateTime)) {
-            Toast.makeText(getContext(), "Event end must be after event start", Toast.LENGTH_SHORT).show();
-            return;
-        }
+            // Create timestamps by combining dates and times
+            LocalDateTime startDateTime = LocalDateTime.of(
+                    Instant.ofEpochMilli(startDate).atZone(ZoneId.systemDefault()).toLocalDate(),
+                    startTime
+            );
+            LocalDateTime endDateTime = LocalDateTime.of(
+                    Instant.ofEpochMilli(endDate).atZone(ZoneId.systemDefault()).toLocalDate(),
+                    endTime
+            );
 
-        // Collect blood type requirements
-        Map<String, Double> bloodTypeTargets = new HashMap<>();
-        LinearLayout container = requireView().findViewById(R.id.bloodTypeContainer);
-        for (int i = 0; i < container.getChildCount(); i++) {
-            View child = container.getChildAt(i);
-            TextView typeLabel = child.findViewById(R.id.bloodTypeLabel);
-            TextInputEditText amountInput = child.findViewById(R.id.amountInput);
-            String bloodType = typeLabel.getText().toString();
-            String amount = amountInput.getText().toString().trim();
+            // Collect blood type requirements
+            Map<String, Double> bloodTypeTargets = new HashMap<>();
+            LinearLayout container = requireView().findViewById(R.id.bloodTypeContainer);
+            for (int i = 0; i < container.getChildCount(); i++) {
+                View child = container.getChildAt(i);
+                TextView typeLabel = child.findViewById(R.id.bloodTypeLabel);
+                TextInputEditText amountInput = child.findViewById(R.id.amountInput);
+                String bloodType = typeLabel.getText().toString();
+                String amount = amountInput.getText().toString().trim();
 
-            if (!amount.isEmpty()) {
-                try {
-                    double value = Double.parseDouble(amount);
-                    if (value > 0) {
-                        bloodTypeTargets.put(bloodType, value);
+                if (!amount.isEmpty()) {
+                    try {
+                        double value = Double.parseDouble(amount);
+                        if (value > 0) {
+                            bloodTypeTargets.put(bloodType, value);
+                        }
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(getContext(),
+                                "Please enter valid numbers for blood amounts",
+                                Toast.LENGTH_SHORT).show();
+                        return;
                     }
-                } catch (NumberFormatException e) {
-                    Toast.makeText(getContext(),
-                            "Please enter valid numbers for blood amounts",
-                            Toast.LENGTH_SHORT).show();
-                    return;
                 }
             }
-        }
 
-        CreateEventDTO eventDTO = new CreateEventDTO(
-                title,
-                description,
-                startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                getTotalBloodGoal(bloodTypeTargets),
-                selectedAddress,
-                selectedLocation.latitude,
-                selectedLocation.longitude,
-                "",  // Location description
-                startTime,
-                endTime
-        );
-        eventDTO.setBloodTypeTargets(bloodTypeTargets);
+            String eventId = UUID.randomUUID().toString();
 
-        String userId = AuthManager.getInstance().getUserId();
-        ApiResponse<DonationEvent> response = ServiceLocator.getEventService()
-                .createEvent(userId, eventDTO);
+            CreateEventDTO eventDTO = new CreateEventDTO(
+                    title,
+                    description,
+                    startDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    endDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    getTotalBloodGoal(bloodTypeTargets),
+                    selectedAddress,
+                    selectedLocation.latitude,
+                    selectedLocation.longitude,
+                    location.getDescription(),
+                    startTime,
+                    endTime
+            );
+            eventDTO.setBloodTypeTargets(bloodTypeTargets);
 
-        if (response.isSuccess()) {
-            Toast.makeText(getContext(),
-                    "Event created successfully",
-                    Toast.LENGTH_SHORT).show();
-            navigateToMap(response.getData());
-        } else {
-            Toast.makeText(getContext(),
-                    response.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+            String userId = AuthManager.getInstance().getUserId();
+            ApiResponse<DonationEvent> response = ServiceLocator.getEventService().createEvent(userId, eventDTO);
+
+            if (response.isSuccess() && response.getData() != null) {
+                DonationEvent createdEvent = response.getData();
+                Toast.makeText(getContext(), "Event created successfully", Toast.LENGTH_SHORT).show();
+
+                // Launch EventDetailsActivity directly with correct ID
+                Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
+                intent.putExtra("eventId", createdEvent.getEventId());
+                startActivity(intent);
+
+                // Optionally, also navigate back to map
+                requireActivity().getSupportFragmentManager()
+                        .beginTransaction()
+                        .replace(R.id.fragment_container, new MapFragment())
+                        .commit();
+            } else {
+                Toast.makeText(getContext(),
+                        response.getMessage() != null ? response.getMessage() : "Failed to create event",
+                        Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e("CreateEventFragment", "Error creating event", e);
+            Toast.makeText(getContext(), "Error creating event: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 

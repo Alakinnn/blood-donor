@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 
 public class EventRepository implements IEventRepository {
     private final DatabaseHelper dbHelper;
+    private static final String TAG = "EventRepository";
     private static final double EARTH_RADIUS = 6371; // kilometers
 
     public EventRepository(DatabaseHelper dbHelper) {
@@ -234,23 +235,12 @@ public class EventRepository implements IEventRepository {
 
     @Override
     public Optional<DonationEvent> findById(String eventId) throws AppException {
-        SQLiteDatabase db;
+        SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
             db = dbHelper.getReadableDatabase();
+            Log.d(TAG, "Finding event with ID: " + eventId);
 
-            // First verify the event exists
-            Cursor checkCursor = db.query(
-                    "events",
-                    new String[]{"id"},
-                    "id = ?",
-                    new String[]{eventId},
-                    null, null, null
-            );
-
-            checkCursor.close();
-
-            // Now do the full query with join
             String query = "SELECT e.*, l.* FROM events e " +
                     "JOIN locations l ON e.location_id = l.id " +
                     "WHERE e.id = ?";
@@ -258,18 +248,21 @@ public class EventRepository implements IEventRepository {
             cursor = db.rawQuery(query, new String[]{eventId});
 
             if (cursor != null && cursor.moveToFirst()) {
-                // Verify we have all required columns
-                String[] columns = cursor.getColumnNames();
-
-                return Optional.of(cursorToEvent(cursor));
+                DonationEvent event = cursorToEvent(cursor);
+                Log.d(TAG, "Found event: " + event.getEventId());
+                return Optional.of(event);
             }
 
+            Log.d(TAG, "No event found with ID: " + eventId);
             return Optional.empty();
 
         } catch (Exception e) {
+            Log.e(TAG, "Error finding event: " + eventId, e);
             throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
         } finally {
-            if (cursor != null) cursor.close();
+            if (cursor != null) {
+                cursor.close();
+            }
         }
     }
 
@@ -277,55 +270,90 @@ public class EventRepository implements IEventRepository {
     public Optional<DonationEvent> save(DonationEvent event) throws AppException {
         SQLiteDatabase db = null;
         try {
+            Log.d(TAG, "Starting save for event: " + event.getEventId());
             db = dbHelper.getWritableDatabase();
             db.beginTransaction();
 
-            ContentValues values = new ContentValues();
-            values.put("id", event.getEventId());
-            values.put("title", event.getTitle());
-            values.put("description", event.getDescription());
-            values.put("start_time", event.getStartTime());
-            values.put("end_time", event.getEndTime());
-            values.put("host_id", event.getHostId());
-            values.put("status", event.getStatus().name());
-            values.put("location_id", event.getLocation().getLocationId());
-            values.put("created_at", System.currentTimeMillis());
-            values.put("updated_at", System.currentTimeMillis());
+            // First save/update the location
+            Location location = event.getLocation();
+            ContentValues locationValues = new ContentValues();
+            locationValues.put("id", location.getLocationId());
+            locationValues.put("address", location.getAddress());
+            locationValues.put("latitude", location.getLatitude());
+            locationValues.put("longitude", location.getLongitude());
+            locationValues.put("description", location.getDescription());
+            locationValues.put("created_at", System.currentTimeMillis());
+            locationValues.put("updated_at", System.currentTimeMillis());
 
-            // Convert blood type targets to JSON
+            // Use insertWithOnConflict to handle existing locations
+            long locationResult = db.insertWithOnConflict(
+                    "locations",
+                    null,
+                    locationValues,
+                    SQLiteDatabase.CONFLICT_REPLACE
+            );
+
+            Log.d(TAG, "Location save/update result: " + locationResult);
+
+            // Then save the event
+            ContentValues eventValues = new ContentValues();
+            eventValues.put("id", event.getEventId());
+            eventValues.put("title", event.getTitle());
+            eventValues.put("description", event.getDescription());
+            eventValues.put("start_time", event.getStartTime());
+            eventValues.put("end_time", event.getEndTime());
+            eventValues.put("location_id", location.getLocationId());
+            eventValues.put("host_id", event.getHostId());
+            eventValues.put("status", event.getStatus().name());
+
+            // Convert blood requirements to JSON
             JSONObject bloodTypeTargets = new JSONObject();
-            for (Map.Entry<String, BloodTypeRequirement> entry : event.getBloodRequirements().entrySet()) {
-                bloodTypeTargets.put(entry.getKey(), entry.getValue().getTargetAmount());
-            }
-            values.put("blood_type_targets", bloodTypeTargets.toString());
-
-            if (event.getDonationStartTime() != null) {
-                values.put("donation_start_time", event.getDonationStartTime().toString());
-            }
-            if (event.getDonationEndTime() != null) {
-                values.put("donation_end_time", event.getDonationEndTime().toString());
-            }
-
-            // Add blood_collected as empty JSON object - this was missing before
             JSONObject bloodCollected = new JSONObject();
             for (Map.Entry<String, BloodTypeRequirement> entry : event.getBloodRequirements().entrySet()) {
-                bloodCollected.put(entry.getKey(), 0.0); // Initialize with 0 collected for each blood type
+                BloodTypeRequirement req = entry.getValue();
+                bloodTypeTargets.put(entry.getKey(), req.getTargetAmount());
+                bloodCollected.put(entry.getKey(), 0.0); // Initialize with 0 collected
             }
-            values.put("blood_collected", bloodCollected.toString());
 
-            long result = db.insert(TABLE_EVENTS, null, values);
-            if (result == -1) {
+            eventValues.put("blood_type_targets", bloodTypeTargets.toString());
+            eventValues.put("blood_collected", bloodCollected.toString());
+
+            if (event.getDonationStartTime() != null) {
+                eventValues.put("donation_start_time", event.getDonationStartTime().toString());
+            }
+            if (event.getDonationEndTime() != null) {
+                eventValues.put("donation_end_time", event.getDonationEndTime().toString());
+            }
+
+            eventValues.put("created_at", System.currentTimeMillis());
+            eventValues.put("updated_at", System.currentTimeMillis());
+
+            // Use insertWithOnConflict for event as well
+            long eventResult = db.insertWithOnConflict(
+                    "events",
+                    null,
+                    eventValues,
+                    SQLiteDatabase.CONFLICT_REPLACE
+            );
+
+            Log.d(TAG, "Event save result: " + eventResult);
+
+            if (eventResult == -1) {
                 throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to save event");
             }
 
             db.setTransactionSuccessful();
+            Log.d(TAG, "Successfully saved event: " + event.getEventId());
             return Optional.of(event);
 
-        } catch (SQLiteException | JSONException e) {
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving event: " + event.getEventId(), e);
             throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
         } finally {
             if (db != null) {
-                db.endTransaction();
+                if (db.inTransaction()) {
+                    db.endTransaction();
+                }
             }
         }
     }
