@@ -20,6 +20,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventMarkerDTO;
+import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.EventService;
@@ -229,6 +230,26 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     private void navigateToEventDetails(String eventId) {
         Log.d("MapFragment", "Opening event details with ID: " + eventId);
+
+        // Get event data from markerEventMap using selected event
+        EventMarkerDTO marker = selectedEvent;
+        if (marker != null) {
+            // Create and cache event summary before navigation
+            EventSummaryDTO summary = new EventSummaryDTO();
+            summary.setEventId(marker.getEventId());
+            summary.setTitle(marker.getTitle());
+            summary.setAddress(marker.getAddress());
+            summary.setStartTime(marker.getStartTime());
+            summary.setEndTime(marker.getEndTime());
+            summary.setRequiredBloodTypes(marker.getRequiredBloodTypes());
+            summary.setBloodGoal(marker.getBloodGoal());
+            summary.setCurrentBloodCollected(marker.getCurrentBloodCollected());
+            summary.setLatitude(marker.getLatitude());
+            summary.setLongitude(marker.getLongitude());
+
+            // Cache the event details
+            ServiceLocator.getEventService().cacheEventDetails(summary);
+        }
 
         Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
         intent.putExtra("eventId", eventId);
