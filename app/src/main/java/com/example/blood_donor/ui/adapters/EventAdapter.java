@@ -96,10 +96,22 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             ));
 
             // Set up progress
-            int progress = (int) ((event.getCurrentBloodCollected() / event.getBloodGoal()) * 100);
-            progressBar.setProgress(progress);
+            double progress = (event.getBloodGoal() > 0) ?
+                    (event.getCurrentBloodCollected() / event.getBloodGoal()) * 100 : 0;
+
+            // Ensure progress is between 0 and 100
+            progress = Math.min(100, Math.max(0, progress));
+
+            // Log the values for debugging
+            Log.d("EventAdapter", String.format("Event: %s, Goal: %.2f, Collected: %.2f, Progress: %.2f%%",
+                    event.getEventId(),
+                    event.getBloodGoal(),
+                    event.getCurrentBloodCollected(),
+                    progress));
+
+            progressBar.setProgress((int) progress);
             progressText.setText(String.format(Locale.getDefault(),
-                    "%d%% of %.1fL goal", progress, event.getBloodGoal()));
+                    "%.1f%% of %.1fL goal", progress, event.getBloodGoal()));
 
             detailsButton.setOnClickListener(v -> {
                 if (listener != null) {

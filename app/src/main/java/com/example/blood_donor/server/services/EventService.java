@@ -401,14 +401,38 @@ public class EventService implements IEventService {
         summary.setDonationStartTime(getDonationStartTime(event));
         summary.setDonationEndTime(getDonationEndTime(event));
 
-        // Set blood progress
-        List<BloodTypeProgress> bloodProgress = event.getBloodRequirements()
-                .values().stream()
-                .map(req -> new BloodTypeProgress(
-                        req.getTargetAmount(),
-                        req.getCollectedAmount()
-                ))
-                .collect(Collectors.toList());
+        Map<String, BloodTypeRequirement> requirements = event.getBloodRequirements();
+        double totalGoal = 0;
+        double totalCollected = 0;
+
+        List<BloodTypeProgress> bloodProgress = new ArrayList<>();
+
+        Log.d("EventService", "Converting event: " + event.getEventId());
+        Log.d("EventService", "Blood requirements: " + requirements.toString());
+
+        for (Map.Entry<String, BloodTypeRequirement> entry : requirements.entrySet()) {
+            BloodTypeRequirement req = entry.getValue();
+            double targetAmount = req.getTargetAmount();
+            double collectedAmount = req.getCollectedAmount();
+
+            totalGoal += targetAmount;
+            totalCollected += collectedAmount;
+
+            Log.d("EventService", String.format("Blood type %s - Target: %.2f, Collected: %.2f",
+                    entry.getKey(), targetAmount, collectedAmount));
+
+            bloodProgress.add(new BloodTypeProgress(targetAmount, collectedAmount));
+        }
+
+        summary.setBloodGoal(totalGoal);
+        summary.setCurrentBloodCollected(totalCollected);
+
+        double progress = (totalGoal > 0) ? (totalCollected / totalGoal) * 100 : 0;
+        summary.setTotalProgress(progress);
+
+        Log.d("EventService", String.format("Total Goal: %.2f, Total Collected: %.2f, Progress: %.2f%%",
+                totalGoal, totalCollected, progress));
+
         summary.setBloodProgress(bloodProgress);
 
         if (event.getDistance() != null) {
