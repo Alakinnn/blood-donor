@@ -1,3 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">blood-donor</string>
+    <string name="app_name">Blood Donor</string>
+    <string name="next">Next</string>
+    <string name="skip">Skip</string>
+    <string name="start">Get Started</string>
+    <string name="slide_image">Slide image</string>
+
+    <!-- Intro slider content -->
+    <string name="intro_heading_1">Find Blood Donation Events</string>
+    <string name="intro_heading_2">Make a Difference</string>
+    <string name="intro_heading_3">Track Your Impact</string>
+
+    <string name="intro_desc_1">Easily locate blood donation events near you through our interactive map</string>
+    <string name="intro_desc_2">Join events as a donor or volunteer to help save lives in your community</string>
+    <string name="intro_desc_3">Monitor your donations and see the real impact you make in people\'s lives</string>
+
+    <!-- Home Activity -->
+    <string name="hello_user">Hello, %1$s</string>
+    <string name="search_hint">Search events</string>
+    <string name="sort_distance">Distance</string>
+    <string name="sort_date">Date</string>
+    <string name="sort_blood_type">Blood Type</string>
+    <string name="see_details">See Details</string>
+    <string name="blood_goal_format">%1$d%% of %2$.1fL goal</string>
+
+    <!-- Bottom Navigation -->
+    <string name="menu_home">Home</string>
+    <string name="menu_map">Map</string>
+    <string name="menu_history">History</string>
+    <string name="menu_profile">Profile</string>
+    <string name="menu_create">Create</string>
+    <string name="menu_my_events">My Events</string>
+
+    <!-- Blood Types -->
+    <string-array name="blood_types">
+        <item>A+</item>
+        <item>A-</item>
+        <item>B+</item>
+        <item>B-</item>
+        <item>AB+</item>
+        <item>AB-</item>
+        <item>O+</item>
+        <item>O-</item>
+    </string-array>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/colorBackground">
+
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Filter Events"
+        style="@style/TextAppearance.BloodDonor.Headline2"
+        android:layout_marginBottom="16dp"/>
+
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Blood Types Needed"
+        style="@style/TextAppearance.BloodDonor.Body1"
+        android:textColor="@color/textPrimary"
+        android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/blood_type_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleSelection="false">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/type_a_pos"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="A+"
+            app:chipBackgroundColor="@color/colorPrimaryLight"/>
+
+        <!-- Add other blood type chips following the same pattern -->
+
+    </com.google.android.material.chip.ChipGroup>
+
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Distance Range"
+        style="@style/TextAppearance.BloodDonor.Body1"
+        android:textColor="@color/textPrimary"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.slider.RangeSlider
+        android:id="@+id/distance_slider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:valueFrom="0"
+        android:valueTo="50"
+        app:thumbColor="@color/colorPrimary"
+        app:trackColorActive="@color/colorPrimary"
+        app:trackColorInactive="@color/colorPrimaryLight"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/apply_filters"
+        style="@style/Widget.BloodDonor.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Apply Filters"/>
+
+</LinearLayout>
