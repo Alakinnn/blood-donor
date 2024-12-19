@@ -5,16 +5,18 @@
     android:orientation="horizontal"
     android:padding="8dp">
 
-    <TextView
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/bloodTypeLabel"
+        style="@style/TextAppearance.BloodDonor.Body1"
         android:layout_width="48dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:layout_marginEnd="16dp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:textColor="@color/textPrimary"/>
 
     <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        style="@style/Widget.BloodDonor.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
@@ -23,6 +25,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Target amount (L)"
+            style="@style/TextAppearance.BloodDonor.Body1"
             android:inputType="numberDecimal" />
     </com.google.android.material.textfield.TextInputLayout>
 </LinearLayout>
+

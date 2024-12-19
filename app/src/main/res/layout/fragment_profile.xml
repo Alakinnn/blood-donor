@@ -2,7 +2,8 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,6 +16,7 @@
             android:layout_height="80dp"
             android:layout_gravity="center_horizontal"
             app:cardCornerRadius="40dp"
+            style="@style/Widget.BloodDonor.CardView"
             android:layout_marginBottom="24dp">
 
             <ImageView
@@ -27,6 +29,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.BloodDonor.CardView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp">
@@ -38,49 +41,56 @@
                 android:padding="16dp">
 
                 <com.google.android.material.textview.MaterialTextView
+                    style="@style/TextAppearance.BloodDonor.Headline2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Personal Information"
-                    android:textAppearance="?attr/textAppearanceHeadline6"
+                    android:textColor="@color/textPrimary"
                     android:layout_marginBottom="16dp"/>
 
                 <com.google.android.material.textview.MaterialTextView
+                    style="@style/TextAppearance.BloodDonor.Body2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Full Name"
-                    android:textAppearance="?attr/textAppearanceCaption"/>
+                    android:textColor="@color/textSecondary"/>
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/nameText"
+                    style="@style/TextAppearance.BloodDonor.Body1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?attr/textAppearanceBody1"
+                    android:textColor="@color/textPrimary"
                     android:layout_marginBottom="16dp"/>
 
                 <com.google.android.material.textview.MaterialTextView
+                    style="@style/TextAppearance.BloodDonor.Body2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Email"
-                    android:textAppearance="?attr/textAppearanceCaption"/>
+                    android:textColor="@color/textSecondary"/>
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/emailText"
+                    style="@style/TextAppearance.BloodDonor.Body1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?attr/textAppearanceBody1"
+                    android:textColor="@color/textPrimary"
                     android:layout_marginBottom="16dp"/>
 
                 <com.google.android.material.textview.MaterialTextView
+                    style="@style/TextAppearance.BloodDonor.Body2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="User Type"
-                    android:textAppearance="?attr/textAppearanceCaption"/>
+                    android:textColor="@color/textSecondary"/>
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/userTypeText"
+                    style="@style/TextAppearance.BloodDonor.Body1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?attr/textAppearanceBody1"
+                    android:textColor="@color/textPrimary"
                     android:layout_marginBottom="16dp"/>
 
                 <LinearLayout
@@ -90,16 +100,18 @@
                     android:orientation="vertical">
 
                     <com.google.android.material.textview.MaterialTextView
+                        style="@style/TextAppearance.BloodDonor.Body2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Blood Type"
-                        android:textAppearance="?attr/textAppearanceCaption"/>
+                        android:textColor="@color/textSecondary"/>
 
                     <com.google.android.material.textview.MaterialTextView
                         android:id="@+id/bloodTypeText"
+                        style="@style/TextAppearance.BloodDonor.Body1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textAppearance="?attr/textAppearanceBody1"
+                        android:textColor="@color/colorPrimary"
                         android:layout_marginBottom="16dp"/>
                 </LinearLayout>
 
@@ -110,16 +122,18 @@
                     android:orientation="vertical">
 
                     <com.google.android.material.textview.MaterialTextView
+                        style="@style/TextAppearance.BloodDonor.Body2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Phone Number"
-                        android:textAppearance="?attr/textAppearanceCaption"/>
+                        android:textColor="@color/textSecondary"/>
 
                     <com.google.android.material.textview.MaterialTextView
                         android:id="@+id/phoneText"
+                        style="@style/TextAppearance.BloodDonor.Body1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textAppearance="?attr/textAppearanceBody1"
+                        android:textColor="@color/textPrimary"
                         android:layout_marginBottom="16dp"/>
                 </LinearLayout>
             </LinearLayout>
@@ -127,10 +141,10 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/logoutButton"
+            style="@style/Widget.BloodDonor.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Logout"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+            android:text="Logout"/>
 
     </LinearLayout>
 </ScrollView>

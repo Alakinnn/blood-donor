@@ -1,21 +1,74 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+<resources>
     <style name="Theme.BloodDonor" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- Primary brand color. -->
+        <!-- Primary brand colors -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/colorAccent</item>
-        <item name="colorSecondaryVariant">@color/colorAccentDark</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
+        <item name="colorOnPrimary">@color/colorBackground</item>
+
+        <!-- Secondary brand colors -->
+        <item name="colorSecondary">@color/colorSecondary</item>
+        <item name="colorSecondaryVariant">@color/colorSecondaryDark</item>
+        <item name="colorOnSecondary">@color/colorBackground</item>
+
+        <!-- Status bar color -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+
+        <!-- Text appearance -->
+        <item name="android:textColorPrimary">@color/textPrimary</item>
+        <item name="android:textColorSecondary">@color/textSecondary</item>
+
+        <!-- Component styles -->
+        <item name="materialButtonStyle">@style/Widget.BloodDonor.Button</item>
+        <item name="textInputStyle">@style/Widget.BloodDonor.TextInputLayout</item>
+        <item name="cardViewStyle">@style/Widget.BloodDonor.CardView</item>
     </style>
 
-    <!-- Theme for login and onboarding screens with full immersion -->
-    <style name="Theme.BloodDonor.Immersive" parent="Theme.BloodDonor">
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowTranslucentNavigation">true</item>
+    <!-- Button style -->
+    <style name="Widget.BloodDonor.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">0.025</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="cornerRadius">8dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:paddingLeft">24dp</item>
+        <item name="android:paddingRight">24dp</item>
+    </style>
+
+    <!-- Text Input style -->
+    <style name="Widget.BloodDonor.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">8dp</item>
+        <item name="boxCornerRadiusTopEnd">8dp</item>
+        <item name="boxCornerRadiusBottomStart">8dp</item>
+        <item name="boxCornerRadiusBottomEnd">8dp</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <!-- Card style -->
+    <style name="Widget.BloodDonor.CardView" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">2dp</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+
+    <!-- Text Styles -->
+    <style name="TextAppearance.BloodDonor.Headline1" parent="TextAppearance.MaterialComponents.Headline1">
+        <item name="fontFamily">@fonts/poppins_medium</item>
+        <item name="android:textSize">32sp</item>
+    </style>
+
+    <style name="TextAppearance.BloodDonor.Headline2" parent="TextAppearance.MaterialComponents.Headline2">
+        <item name="fontFamily">@fonts/poppins_medium</item>
+        <item name="android:textSize">24sp</item>
+    </style>
+
+    <style name="TextAppearance.BloodDonor.Body1" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="fontFamily">@fonts/poppins_regular</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="TextAppearance.BloodDonor.Body2" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="fontFamily">@fonts/poppins_regular</item>
+        <item name="android:textSize">14sp</item>
     </style>
 </resources>

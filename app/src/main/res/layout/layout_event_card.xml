@@ -2,10 +2,10 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.BloodDonor.CardView"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    app:cardElevation="4dp">
+    android:layout_marginBottom="8dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,44 +15,51 @@
 
         <TextView
             android:id="@+id/eventTitle"
+            style="@style/TextAppearance.BloodDonor.Headline2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textColor="@color/textPrimary"/>
 
         <TextView
             android:id="@+id/eventDateTime"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" />
-
-        <TextView
-            android:id="@+id/requiredBloodTypes"
+            style="@style/TextAppearance.BloodDonor.Body1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textColor="@color/colorPrimary" />
+            android:textColor="@color/textSecondary"/>
+
+        <TextView
+            android:id="@+id/requiredBloodTypes"
+            style="@style/TextAppearance.BloodDonor.Body1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/colorPrimary"/>
 
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/bloodProgress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            app:trackColor="@color/colorPrimaryLight"
+            app:indicatorColor="@color/colorPrimary"/>
 
         <TextView
             android:id="@+id/progressText"
+            style="@style/TextAppearance.BloodDonor.Body2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textAlignment="center" />
+            android:textAlignment="center"
+            android:textColor="@color/textSecondary"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/detailsButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/Widget.BloodDonor.Button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginTop="8dp"
-            android:text="See Details" />
+            android:text="See Details"/>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
