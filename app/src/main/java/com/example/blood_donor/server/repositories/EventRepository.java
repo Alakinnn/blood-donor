@@ -139,23 +139,33 @@ public class EventRepository implements IEventRepository {
 
     private DonationEvent cursorToEvent(Cursor cursor) {
         try {
-            // Debug log the raw JSON data
-            String bloodTypeTargetsJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_type_targets"));
-            String bloodCollectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
-            Log.d("EventRepository", "Blood type targets JSON: " + bloodTypeTargetsJson);
-            Log.d("EventRepository", "Blood collected JSON: " + bloodCollectedJson);
-            String locationId = cursor.getString(cursor.getColumnIndexOrThrow("location_id"));
+            // Get column indices first and check if they exist
+            int eventIdColIndex = cursor.getColumnIndex("event_id");
+            int idColIndex = cursor.getColumnIndex("id");  // Fallback for simple queries
 
-            Map<String, Double> bloodTypeTargets = new HashMap<>();
-            if (bloodTypeTargetsJson != null) {
-                JSONObject targets = new JSONObject(bloodTypeTargetsJson);
-                Iterator<String> keys = targets.keys();
-                while(keys.hasNext()) {
-                    String type = keys.next();
-                    bloodTypeTargets.put(type, targets.getDouble(type));
-                }
+            // Determine which column to use for event ID
+            String eventId;
+            if (eventIdColIndex != -1) {
+                eventId = cursor.getString(eventIdColIndex);
+                Log.d("EventRepository", "Using event_id column: " + eventId);
+            } else if (idColIndex != -1) {
+                eventId = cursor.getString(idColIndex);
+                Log.d("EventRepository", "Using id column: " + eventId);
+            } else {
+                throw new RuntimeException("No event ID column found in cursor");
             }
 
+            // Get location ID
+            int locationIdColIndex = cursor.getColumnIndex("location_id");
+            String locationId;
+            if (locationIdColIndex != -1) {
+                locationId = cursor.getString(locationIdColIndex);
+            } else {
+                // If not found, try to get it from the location_id column directly
+                locationId = cursor.getString(cursor.getColumnIndexOrThrow("location_id"));
+            }
+
+            // Create location object
             Location location = new Location.Builder()
                     .locationId(locationId)
                     .address(cursor.getString(cursor.getColumnIndexOrThrow("address")))
@@ -166,35 +176,44 @@ public class EventRepository implements IEventRepository {
                     .description(cursor.getString(cursor.getColumnIndexOrThrow("description")))
                     .build();
 
+            // Create event object using the determined event ID
             DonationEvent event = new DonationEvent(
-                    cursor.getString(cursor.getColumnIndexOrThrow("event_id")),
+                    eventId,
                     cursor.getString(cursor.getColumnIndexOrThrow("title")),
                     cursor.getString(cursor.getColumnIndexOrThrow("description")),
                     cursor.getLong(cursor.getColumnIndexOrThrow("start_time")),
                     cursor.getLong(cursor.getColumnIndexOrThrow("end_time")),
                     location,
-                    bloodTypeTargets,
+                    parseBloodTypeTargets(cursor.getString(cursor.getColumnIndexOrThrow("blood_type_targets"))),
                     cursor.getString(cursor.getColumnIndexOrThrow("host_id")),
                     LocalTime.parse(cursor.getString(cursor.getColumnIndexOrThrow("donation_start_time"))),
                     LocalTime.parse(cursor.getString(cursor.getColumnIndexOrThrow("donation_end_time")))
             );
 
-            // Parse and set blood collected amounts
-            String collectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
-            if (collectedJson != null) {
-                JSONObject collected = new JSONObject(collectedJson);
-                Iterator<String> keys = collected.keys();
-                while(keys.hasNext()) {
-                    String type = keys.next();
-                    event.recordDonation(type, collected.getDouble(type));
-                }
-            }
-
             return event;
         } catch (Exception e) {
-            Log.e("EventRepository", "Error converting cursor to event", e);
+            Log.e("EventRepository", "Error in cursorToEvent", e);
+            Log.e("EventRepository", "Available columns: " + Arrays.toString(cursor.getColumnNames()));
             throw new RuntimeException("Error parsing event data", e);
         }
+    }
+
+    private Map<String, Double> parseBloodTypeTargets(String bloodTypeTargetsJson) {
+        Map<String, Double> bloodTypeTargets = new HashMap<>();
+        if (bloodTypeTargetsJson != null) {
+            try {
+                JSONObject targets = new JSONObject(bloodTypeTargetsJson);
+                Iterator<String> keys = targets.keys();
+                while (keys.hasNext()) {
+                    String type = keys.next();
+                    bloodTypeTargets.put(type, targets.getDouble(type));
+                }
+            } catch (JSONException e) {
+                Log.e("EventRepository", "Error parsing blood type targets: " + e.getMessage());
+                throw new RuntimeException("Error parsing blood type targets", e);
+            }
+        }
+        return bloodTypeTargets;
     }
 
     @Override
@@ -266,7 +285,12 @@ public class EventRepository implements IEventRepository {
             checkCursor.close();
 
             // Now do the full query with join
-            String query = "SELECT e.*, l.* FROM events e " +
+            String query = "SELECT e.id AS event_id, e.title, e.description, " +
+                    "e.start_time, e.end_time, e.blood_type_targets, " +
+                    "e.blood_collected, e.host_id, e.status, " +
+                    "e.donation_start_time, e.donation_end_time, " +
+                    "l.id AS location_id, l.address, l.latitude, l.longitude, l.description " +
+                    "FROM events e " +
                     "JOIN locations l ON e.location_id = l.id " +
                     "WHERE e.id = ?";
 
