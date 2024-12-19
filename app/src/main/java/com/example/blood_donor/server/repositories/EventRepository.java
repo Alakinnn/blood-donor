@@ -48,7 +48,11 @@ public class EventRepository implements IEventRepository {
             db = dbHelper.getReadableDatabase();
 
             QueryBuilder queryBuilder = new QueryBuilder();
-            queryBuilder.select("e.*, l.*")
+            queryBuilder.select("e.id AS event_id, e.title, e.description, " +
+                            "e.start_time, e.end_time, e.blood_type_targets, " +
+                            "e.blood_collected, e.host_id, e.status, " +
+                            "e.donation_start_time, e.donation_end_time, " +
+                            "l.id AS location_id, l.address, l.latitude, l.longitude, l.description")
                     .from("events e")
                     .join("locations l ON e.location_id = l.id")
                     .where("e.status != ?", "CANCELLED");
@@ -140,6 +144,7 @@ public class EventRepository implements IEventRepository {
             String bloodCollectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
             Log.d("EventRepository", "Blood type targets JSON: " + bloodTypeTargetsJson);
             Log.d("EventRepository", "Blood collected JSON: " + bloodCollectedJson);
+            String locationId = cursor.getString(cursor.getColumnIndexOrThrow("location_id"));
 
             Map<String, Double> bloodTypeTargets = new HashMap<>();
             if (bloodTypeTargetsJson != null) {
@@ -152,7 +157,7 @@ public class EventRepository implements IEventRepository {
             }
 
             Location location = new Location.Builder()
-                    .locationId(cursor.getString(cursor.getColumnIndexOrThrow("location_id")))
+                    .locationId(locationId)
                     .address(cursor.getString(cursor.getColumnIndexOrThrow("address")))
                     .coordinates(
                             cursor.getDouble(cursor.getColumnIndexOrThrow("latitude")),
@@ -162,7 +167,7 @@ public class EventRepository implements IEventRepository {
                     .build();
 
             DonationEvent event = new DonationEvent(
-                    cursor.getString(cursor.getColumnIndexOrThrow("id")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("event_id")),
                     cursor.getString(cursor.getColumnIndexOrThrow("title")),
                     cursor.getString(cursor.getColumnIndexOrThrow("description")),
                     cursor.getLong(cursor.getColumnIndexOrThrow("start_time")),
