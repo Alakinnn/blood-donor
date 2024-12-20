@@ -1,5 +1,6 @@
 package com.example.blood_donor.ui;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -9,7 +10,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventDetailDTO;
-import com.example.blood_donor.server.models.donation.RegistrationType;
+import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.server.services.DonationRegistrationService;
@@ -204,28 +205,77 @@ public class EventDetailsActivity extends AppCompatActivity {
 
     private void setupActionButton() {
         UserType userType = AuthManager.getInstance().getUserType();
+        String userId = AuthManager.getInstance().getUserId();
         boolean isManager = userType == UserType.SITE_MANAGER;
 
-        // Show different button text based on user type
-        actionButton.setText(isManager ? "Join as Volunteer" : "Register to Donate");
-        actionButton.setOnClickListener(v -> registerForEvent(isManager));
+        try {
+            // Check if already registered
+            boolean isRegistered = ServiceLocator.getRegistrationRepository()
+                    .isRegistered(userId, eventId);
+
+            if (isRegistered) {
+                actionButton.setText("Already Registered");
+                actionButton.setEnabled(false);
+                actionButton.setAlpha(0.5f);
+            } else {
+                actionButton.setText(isManager ? "Join as Volunteer" : "Register to Donate");
+                actionButton.setEnabled(true);
+                actionButton.setAlpha(1.0f);
+                actionButton.setOnClickListener(v -> registerForEvent(isManager));
+            }
+        } catch (AppException e) {
+            Log.e("EventDetails", "Error checking registration status", e);
+            // Set default state if check fails
+            actionButton.setText(isManager ? "Join as Volunteer" : "Register to Donate");
+        }
     }
 
+    @SuppressLint({"DefaultLocale", "SetTextI18n"})
     private void registerForEvent(boolean asVolunteer) {
         String userId = AuthManager.getInstance().getUserId();
-        RegistrationType type = asVolunteer ?
-                RegistrationType.VOLUNTEER : RegistrationType.DONOR;
-
         ApiResponse<Boolean> response =
-                registrationService.register(userId, eventId);
+                ServiceLocator.getDonationRegistrationService().register(userId, eventId);
 
         if (response.isSuccess()) {
-            Toast.makeText(this, "Successfully registered!",
-                    Toast.LENGTH_SHORT).show();
-            loadEventDetails(); // Reload to update counts
+            boolean wasAlreadyRegistered = response.getData();
+            if (!wasAlreadyRegistered) {
+                Toast.makeText(this, "Successfully registered!", Toast.LENGTH_SHORT).show();
+                // Update button state
+                actionButton.setText("Already Registered");
+                actionButton.setEnabled(false);
+                actionButton.setAlpha(0.5f);
+                // Immediately update UI counts and progress
+                try {
+                    // Update registration counts
+                    if (asVolunteer) {
+                        int currentVolunteers = Integer.parseInt(volunteerCountView.getText().toString().split(" ")[0]);
+                        volunteerCountView.setText((currentVolunteers + 1) + " volunteers registered");
+                    } else {
+                        int currentDonors = Integer.parseInt(donorCountView.getText().toString().split(" ")[0]);
+                        donorCountView.setText((currentDonors + 1) + " donors registered");
+
+                        // Update blood collection progress for donors
+                        double currentCollected = eventDetails.getCurrentBloodCollected() + DonationRegistrationService.STANDARD_DONATION_AMOUNT;
+                        double goalAmount = eventDetails.getBloodGoal();
+                        double newProgress = (currentCollected / goalAmount) * 100;
+
+                        // Update progress bar
+                        progressBar.setProgress((int) newProgress);
+                        progressText.setText(String.format("%.1f%% of %.1fL goal",
+                                newProgress, goalAmount));
+
+                        // Update the cached event details
+                        eventDetails.setCurrentBloodCollected(currentCollected);
+                    }
+                } catch (Exception e) {
+                    Log.e("EventDetails", "Error updating UI counts", e);
+                }
+
+                // Still reload in background to ensure consistency
+                loadEventDetails();
+            }
         } else {
-            Toast.makeText(this, response.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 }

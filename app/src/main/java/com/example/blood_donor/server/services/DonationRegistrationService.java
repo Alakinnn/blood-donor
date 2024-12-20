@@ -15,7 +15,7 @@ import com.example.blood_donor.server.repositories.IUserRepository;
 import com.example.blood_donor.server.repositories.RegistrationRepository;
 
 public class DonationRegistrationService {
-    private static final double STANDARD_DONATION_AMOUNT = 0.45; // Standard blood donation amount in liters
+    public static final double STANDARD_DONATION_AMOUNT = 0.5; // Standard blood donation amount in liters
     private final IRegistrationRepository registrationRepository;
     private final IUserRepository userRepository;
     private final IEventRepository eventRepository;
@@ -32,14 +32,9 @@ public class DonationRegistrationService {
 
     public ApiResponse<Boolean> register(String userId, String eventId) {
         try {
-            // Validate input
-            if (userId == null || eventId == null) {
-                throw new AppException(ErrorCode.INVALID_INPUT, "User ID and Event ID are required");
-            }
-
             // Check if already registered first
             if (registrationRepository.isRegistered(userId, eventId)) {
-                return ApiResponse.success(true);
+                return ApiResponse.success(true); // true indicates already registered
             }
 
             // Get user and validate
@@ -50,37 +45,37 @@ public class DonationRegistrationService {
             DonationEvent event = eventRepository.findById(eventId)
                     .orElseThrow(() -> new AppException(ErrorCode.INVALID_INPUT, "Event not found"));
 
-            // Validate event status
-            validateEventStatus(event);
-
             // Determine registration type based on user type
             RegistrationType type = (user.getUserType() == UserType.SITE_MANAGER)
                     ? RegistrationType.VOLUNTEER
                     : RegistrationType.DONOR;
 
-            // For donors, validate blood type
+            // Validate and register
+            validateEventStatus(event);
             if (type == RegistrationType.DONOR) {
-                if (user.getBloodType() == null) {
-                    throw new AppException(ErrorCode.INVALID_INPUT, "Blood type is required for donors");
-                }
-                if (!event.canDonateBloodType(user.getBloodType())) {
-                    throw new AppException(ErrorCode.INVALID_INPUT,
-                            "Your blood type is not required for this event");
-                }
-            }
-
-            // Register the participant
-            registrationRepository.register(userId, eventId, type);
-
-            // If donor, record the donation amount
-            if (type == RegistrationType.DONOR) {
+                validateDonorRegistration(user, event);
+                // Register and record donation
+                registrationRepository.register(userId, eventId, type);
                 event.recordDonation(user.getBloodType(), STANDARD_DONATION_AMOUNT);
                 eventRepository.save(event);
+            } else {
+                // Just register for volunteers
+                registrationRepository.register(userId, eventId, type);
             }
 
             return ApiResponse.success(false); // false indicates new registration
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());
+        }
+    }
+
+    private void validateDonorRegistration(User user, DonationEvent event) throws AppException {
+        if (user.getBloodType() == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT, "Blood type is required for donors");
+        }
+        if (!event.canDonateBloodType(user.getBloodType())) {
+            throw new AppException(ErrorCode.INVALID_INPUT,
+                    "Your blood type is not required for this event");
         }
     }
 

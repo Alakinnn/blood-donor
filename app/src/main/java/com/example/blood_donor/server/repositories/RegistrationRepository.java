@@ -56,16 +56,19 @@ public class RegistrationRepository implements IRegistrationRepository {
         Cursor cursor = null;
         try {
             db = dbHelper.getReadableDatabase();
-            cursor = db.query(
-                    TABLE_REGISTRATIONS,
-                    new String[]{"registration_id"},
-                    "user_id = ? AND event_id = ? AND status = ?",
-                    new String[]{userId, eventId, "ACTIVE"},
-                    null, null, null
+            cursor = db.rawQuery(
+                    "SELECT COUNT(*) FROM registrations " +
+                            "WHERE user_id = ? AND event_id = ? AND status = 'ACTIVE'",
+                    new String[]{userId, eventId}
             );
-            return cursor != null && cursor.getCount() > 0;
+
+            if (cursor.moveToFirst()) {
+                return cursor.getInt(0) > 0;
+            }
+            return false;
         } catch (SQLiteException e) {
-            throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
+            throw new AppException(ErrorCode.DATABASE_ERROR,
+                    "Database error checking registration: " + e.getMessage());
         } finally {
             if (cursor != null) {
                 cursor.close();
