@@ -9,6 +9,7 @@ import android.database.sqlite.SQLiteException;
 import android.util.Log;
 
 import com.example.blood_donor.server.database.DatabaseHelper;
+import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.errors.ErrorCode;
@@ -506,5 +507,126 @@ public class EventRepository implements IEventRepository {
         } finally {
             if (cursor != null) cursor.close();
         }
+    }
+
+    @Override
+    public List<EventSummaryDTO> findJoinedEvents(String userId) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getReadableDatabase();
+
+            // Query with joins and aliases
+            String query =
+                    "SELECT e.id AS event_id, e.title, e.description, " +
+                            "e.start_time, e.end_time, e.blood_type_targets, " +
+                            "e.blood_collected, e.status, e.donation_start_time, " +
+                            "e.donation_end_time, " +
+                            "l.address, l.latitude, l.longitude, " +
+                            "r.type AS registration_type " +
+                            "FROM " + DatabaseHelper.TABLE_EVENTS + " e " +
+                            "JOIN " + DatabaseHelper.TABLE_LOCATIONS + " l ON e.location_id = l.id " +
+                            "JOIN " + DatabaseHelper.TABLE_REGISTRATIONS + " r ON e.id = r.event_id " +
+                            "WHERE r.user_id = ? AND r.status = 'ACTIVE' " +
+                            "ORDER BY e.start_time DESC";
+
+            cursor = db.rawQuery(query, new String[]{userId});
+            return convertToEventSummaries(cursor);
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR,
+                    "Error finding joined events: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
+    @Override
+    public List<EventSummaryDTO> findManagedEvents(String userId) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getReadableDatabase();
+
+            // Query with joins and aliases
+            String query =
+                    "SELECT e.id AS event_id, e.title, e.description, " +
+                            "e.start_time, e.end_time, e.blood_type_targets, " +
+                            "e.blood_collected, e.status, e.donation_start_time, " +
+                            "e.donation_end_time, " +
+                            "l.address, l.latitude, l.longitude, " +
+                            "(SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_REGISTRATIONS +
+                            " r WHERE r.event_id = e.id AND r.type = 'DONOR' AND r.status = 'ACTIVE') AS donor_count, " +
+                            "(SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_REGISTRATIONS +
+                            " r WHERE r.event_id = e.id AND r.type = 'VOLUNTEER' AND r.status = 'ACTIVE') AS volunteer_count " +
+                            "FROM " + DatabaseHelper.TABLE_EVENTS + " e " +
+                            "JOIN " + DatabaseHelper.TABLE_LOCATIONS + " l ON e.location_id = l.id " +
+                            "WHERE e.host_id = ? " +
+                            "ORDER BY e.start_time DESC";
+
+            cursor = db.rawQuery(query, new String[]{userId});
+            return convertToEventSummaries(cursor);
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR,
+                    "Error finding managed events: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
+    private List<EventSummaryDTO> convertToEventSummaries(Cursor cursor) {
+        List<EventSummaryDTO> summaries = new ArrayList<>();
+        while (cursor.moveToNext()) {
+            EventSummaryDTO summary = new EventSummaryDTO();
+            summary.setEventId(cursor.getString(cursor.getColumnIndexOrThrow("event_id")));
+            summary.setTitle(cursor.getString(cursor.getColumnIndexOrThrow("title")));
+            summary.setStartTime(cursor.getLong(cursor.getColumnIndexOrThrow("start_time")));
+            summary.setEndTime(cursor.getLong(cursor.getColumnIndexOrThrow("end_time")));
+            summary.setAddress(cursor.getString(cursor.getColumnIndexOrThrow("address")));
+            summary.setLatitude(cursor.getDouble(cursor.getColumnIndexOrThrow("latitude")));
+            summary.setLongitude(cursor.getDouble(cursor.getColumnIndexOrThrow("longitude")));
+
+            // Parse blood type targets from JSON
+            String bloodTypeTargetsJson = cursor.getString(
+                    cursor.getColumnIndexOrThrow("blood_type_targets"));
+            String bloodCollectedJson = cursor.getString(
+                    cursor.getColumnIndexOrThrow("blood_collected"));
+
+            try {
+                JSONObject targets = new JSONObject(bloodTypeTargetsJson);
+                JSONObject collected = new JSONObject(bloodCollectedJson);
+
+                double totalGoal = 0;
+                double totalCollected = 0;
+                List<String> requiredTypes = new ArrayList<>();
+
+                Iterator<String> keys = targets.keys();
+                while (keys.hasNext()) {
+                    String bloodType = keys.next();
+                    requiredTypes.add(bloodType);
+                    totalGoal += targets.getDouble(bloodType);
+                    totalCollected += collected.optDouble(bloodType, 0);
+                }
+
+                summary.setBloodGoal(totalGoal);
+                summary.setCurrentBloodCollected(totalCollected);
+                summary.setRequiredBloodTypes(requiredTypes);
+            } catch (JSONException e) {
+                Log.e("EventRepository", "Error parsing blood type data", e);
+            }
+
+            // Parse donation times
+            String startTimeStr = cursor.getString(
+                    cursor.getColumnIndexOrThrow("donation_start_time"));
+            String endTimeStr = cursor.getString(
+                    cursor.getColumnIndexOrThrow("donation_end_time"));
+
+            if (startTimeStr != null && endTimeStr != null) {
+                summary.setDonationStartTime(LocalTime.parse(startTimeStr));
+                summary.setDonationEndTime(LocalTime.parse(endTimeStr));
+            }
+
+            summaries.add(summary);
+        }
+        return summaries;
     }
 }

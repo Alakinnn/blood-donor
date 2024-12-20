@@ -13,12 +13,14 @@ import com.example.blood_donor.server.repositories.LocationRepository;
 import com.example.blood_donor.server.repositories.RegistrationRepository;
 import com.example.blood_donor.server.repositories.SessionRepository;
 import com.example.blood_donor.server.repositories.UserRepository;
+import com.example.blood_donor.server.services.AnalyticsService;
 import com.example.blood_donor.server.services.AuthService;
 import com.example.blood_donor.server.services.DonationRegistrationService;
 import com.example.blood_donor.server.services.EventCacheService;
 import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.server.services.ManagerService;
 import com.example.blood_donor.server.services.UserService;
+import com.example.blood_donor.server.services.interfaces.IAnalyticsService;
 import com.example.blood_donor.server.services.interfaces.IAuthService;
 import com.example.blood_donor.server.services.interfaces.IUserService;
 
@@ -35,6 +37,8 @@ public class ServiceLocator {
     private static IEventRepository eventRepository;
     private static ILocationRepository locationRepository;
     private static DonationRegistrationService donationRegistrationService;
+    private static IAnalyticsService analyticsService;
+
 
     public static void init(Context context) {
         applicationContext = context.getApplicationContext();
@@ -96,6 +100,17 @@ public class ServiceLocator {
             eventRepository = new EventRepository(getDatabaseHelper());
         }
         return eventRepository;
+    }
+
+    public static synchronized IAnalyticsService getAnalyticsService() {
+        if (analyticsService == null) {
+            analyticsService = new AnalyticsService(
+                    getEventRepository(),
+                    getRegistrationRepository(),
+                    getUserRepository()
+            );
+        }
+        return analyticsService;
     }
 
     public static synchronized ILocationRepository getLocationRepository() {

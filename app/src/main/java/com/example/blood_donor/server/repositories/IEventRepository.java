@@ -1,5 +1,6 @@
 package com.example.blood_donor.server.repositories;
 
+import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.models.event.DonationEvent;
@@ -14,4 +15,6 @@ public interface IEventRepository {
     Optional<DonationEvent> save(DonationEvent event) throws AppException;
     List<DonationEvent> findEventsBetween(long startTime, long endTime) throws AppException;
     List<DonationEvent> findEventsByHostId(String hostId) throws AppException;
+    List<EventSummaryDTO> findJoinedEvents(String userId) throws AppException;
+    List<EventSummaryDTO> findManagedEvents(String userId) throws AppException;
 }

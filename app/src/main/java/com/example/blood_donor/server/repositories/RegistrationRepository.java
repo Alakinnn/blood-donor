@@ -7,7 +7,11 @@ import android.database.sqlite.SQLiteException;
 import com.example.blood_donor.server.database.DatabaseHelper;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.errors.ErrorCode;
+import com.example.blood_donor.server.models.donation.Registration;
 import com.example.blood_donor.server.models.donation.RegistrationType;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class RegistrationRepository implements IRegistrationRepository {
@@ -111,5 +115,41 @@ public class RegistrationRepository implements IRegistrationRepository {
     @Override
     public void updateStatus(String registrationId, String status) throws AppException {
 
+    }
+
+    @Override
+    public List<Registration> getEventRegistrations(String eventId) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getReadableDatabase();
+
+            String query =
+                    "SELECT r.registration_id, r.user_id, r.event_id, " +
+                            "r.type, r.registration_time, r.status " +
+                            "FROM " + DatabaseHelper.TABLE_REGISTRATIONS + " r " +
+                            "WHERE r.event_id = ? AND r.status = 'ACTIVE' " +
+                            "ORDER BY r.registration_time ASC";
+
+            cursor = db.rawQuery(query, new String[]{eventId});
+
+            List<Registration> registrations = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                Registration registration = new Registration(
+                        cursor.getString(cursor.getColumnIndexOrThrow("registration_id")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("user_id")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("event_id")),
+                        RegistrationType.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("type")))
+                );
+                registrations.add(registration);
+            }
+
+            return registrations;
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR,
+                    "Error getting event registrations: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
     }
 }

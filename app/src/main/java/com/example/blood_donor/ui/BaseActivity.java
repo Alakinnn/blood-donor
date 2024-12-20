@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.ui.fragments.CreateEventFragment;
+import com.example.blood_donor.ui.fragments.HistoryFragment;
 import com.example.blood_donor.ui.fragments.HomeFragment;
 import com.example.blood_donor.ui.fragments.MapFragment;
 import com.example.blood_donor.ui.fragments.ProfileFragment;
@@ -55,6 +56,8 @@ public class BaseActivity extends AppCompatActivity {
                 fragment = new CreateEventFragment();
                 loadFragment(fragment);
                 return true;
+            } else if (itemId == R.id.nav_history) {
+                fragment = new HistoryFragment();
             }
 
             if (fragment != null) {

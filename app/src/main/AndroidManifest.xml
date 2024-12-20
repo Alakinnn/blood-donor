@@ -19,6 +19,9 @@
         android:theme="@style/Theme.BloodDonor"
         tools:targetApi="31">
         <activity
+            android:name=".ui.EventStatisticsActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.IntroSliderActivity"
             android:exported="true">
             <intent-filter>
