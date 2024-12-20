@@ -27,9 +27,24 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     private OnEventClickListener listener;
     private static final SimpleDateFormat dateFormat =
             new SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault());
+    private OnEventActionListener actionListener;
+    private boolean showManagerActions = false;
 
     public interface OnEventClickListener {
         void onEventClick(EventSummaryDTO event);
+    }
+
+    public interface OnEventActionListener {
+        void onStatisticsClick(EventSummaryDTO event);
+        void onReportClick(EventSummaryDTO event);
+    }
+
+    public void setShowManagerActions(boolean show) {
+        this.showManagerActions = show;
+    }
+
+    public void setOnEventActionListener(OnEventActionListener listener) {
+        this.actionListener = listener;
     }
 
     public void setOnEventClickListener(OnEventClickListener listener) {
@@ -72,6 +87,9 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
 
     class EventViewHolder extends RecyclerView.ViewHolder {
         private final TextView titleView;
+        private View managerActions;
+        private MaterialButton statisticsButton;
+        private MaterialButton reportButton;
         private final TextView dateTimeView;
         private final LinearProgressIndicator progressBar;
         private final TextView progressText;
@@ -86,6 +104,9 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             progressText = itemView.findViewById(R.id.progressText);
             detailsButton = itemView.findViewById(R.id.detailsButton);
             bloodTypesView = itemView.findViewById(R.id.requiredBloodTypes);
+            managerActions = itemView.findViewById(R.id.managerActions);
+            statisticsButton = itemView.findViewById(R.id.statisticsButton);
+            reportButton = itemView.findViewById(R.id.reportButton);
         }
 
         void bind(EventSummaryDTO event) {
@@ -131,6 +152,15 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
                         event.getDonationStartTime().format(DateTimeFormatter.ofPattern("h:mm a")),
                         event.getDonationEndTime().format(DateTimeFormatter.ofPattern("h:mm a")));
                 dateTimeView.append("\n" + donationHours);
+            }
+
+            managerActions.setVisibility(showManagerActions ? View.VISIBLE : View.GONE);
+
+            if (showManagerActions && actionListener != null) {
+                statisticsButton.setOnClickListener(v ->
+                        actionListener.onStatisticsClick(event));
+                reportButton.setOnClickListener(v ->
+                        actionListener.onReportClick(event));
             }
         }
     }

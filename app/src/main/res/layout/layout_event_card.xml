@@ -61,5 +61,31 @@
             android:layout_gravity="end"
             android:layout_marginTop="8dp"
             android:text="See Details"/>
+
+        <LinearLayout
+            android:id="@+id/managerActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/statisticsButton"
+                style="@style/Widget.BloodDonor.Button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Statistics" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/reportButton"
+                style="@style/Widget.BloodDonor.Button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Report" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

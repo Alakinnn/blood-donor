@@ -26,6 +26,7 @@ import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.example.blood_donor.server.models.modules.ReportFormat;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
@@ -34,13 +35,12 @@ import java.util.List;
 public class HistoryFragment extends Fragment {
     private ViewPager2 viewPager;
     private TabLayout tabLayout;
-    private RecyclerView eventsRecyclerView;
-    private EventAdapter eventAdapter;
-    private View managerControls;
-    private AutoCompleteTextView reportFormatSpinner;
-    private MaterialButton generateReportButton;
-    private MaterialButton showStatsButton;
     private boolean isManager;
+
+    public interface EventActionCallback {
+        void showReportFormatDialog(String eventId);
+        void onStatisticsClick(String eventId);
+    }
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -49,30 +49,57 @@ public class HistoryFragment extends Fragment {
 
         initializeViews(view);
         setupViewPager();
-        if (isManager) {
-            setupManagerControls();
-        }
         return view;
     }
 
     private void initializeViews(View view) {
         viewPager = view.findViewById(R.id.viewPager);
         tabLayout = view.findViewById(R.id.tabLayout);
-        eventsRecyclerView = view.findViewById(R.id.eventsRecyclerView);
-        managerControls = view.findViewById(R.id.managerControls);
+    }
 
-        if (isManager) {
-            reportFormatSpinner = view.findViewById(R.id.reportFormatSpinner);
-            generateReportButton = view.findViewById(R.id.generateReportButton);
-            showStatsButton = view.findViewById(R.id.showStatsButton);
-            managerControls.setVisibility(View.VISIBLE);
-        } else {
-            managerControls.setVisibility(View.GONE);
+    private void showReportFormatDialog(String eventId) {
+        String[] formats = {"CSV", "PDF", "EXCEL"};
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Select Report Format")
+                .setItems(formats, (dialog, which) -> {
+                    String format = formats[which];
+                    generateReport(eventId, format);
+                })
+                .show();
+    }
+
+    private void generateReport(String eventId, String format) {
+        try {
+            ReportFormat reportFormat = ReportFormat.valueOf(format);
+            byte[] report = ServiceLocator.getAnalyticsService()
+                    .generateEventReport(eventId, reportFormat);
+
+            Toast.makeText(requireContext(),
+                    "Report generated successfully",
+                    Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            Toast.makeText(requireContext(),
+                    "Error generating report: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
     private void setupViewPager() {
-        HistoryPagerAdapter pagerAdapter = new HistoryPagerAdapter(this, isManager);
+        HistoryPagerAdapter pagerAdapter = new HistoryPagerAdapter(this, isManager,
+                new EventActionCallback() {
+                    @Override
+                    public void showReportFormatDialog(String eventId) {
+                        HistoryFragment.this.showReportFormatDialog(eventId);
+                    }
+
+                    @Override
+                    public void onStatisticsClick(String eventId) {
+                        Intent intent = new Intent(requireContext(), EventStatisticsActivity.class);
+                        intent.putExtra("eventId", eventId);
+                        startActivity(intent);
+                    }
+                });
         viewPager.setAdapter(pagerAdapter);
 
         // Set up tab titles
@@ -82,57 +109,6 @@ public class HistoryFragment extends Fragment {
 
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) ->
                 tab.setText(titles[position])).attach();
-
-        // Listen for tab changes to show/hide manager controls
-        viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
-            @Override
-            public void onPageSelected(int position) {
-                if (isManager) {
-                    managerControls.setVisibility(position == 1 ? View.VISIBLE : View.GONE);
-                }
-            }
-        });
-    }
-
-    private void setupManagerControls() {
-        // Setup report format spinner
-        String[] formats = {"CSV", "PDF", "EXCEL"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                requireContext(),
-                android.R.layout.simple_dropdown_item_1line,
-                formats
-        );
-        reportFormatSpinner.setAdapter(adapter);
-
-        // Generate report button click handler
-        generateReportButton.setOnClickListener(v -> {
-            String selectedFormat = reportFormatSpinner.getText().toString();
-            String managerId = AuthManager.getInstance().getUserId();
-
-            try {
-                ReportFormat format = ReportFormat.valueOf(selectedFormat);
-                byte[] report = ServiceLocator.getAnalyticsService()
-                        .generateSiteManagerReport(managerId, format);
-
-                // Handle the generated report (save to file or share)
-                // Implementation would depend on your file handling strategy
-                Toast.makeText(requireContext(),
-                        "Report generated successfully",
-                        Toast.LENGTH_SHORT).show();
-
-            } catch (Exception e) {
-                Toast.makeText(requireContext(),
-                        "Error generating report: " + e.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // Show statistics button click handler
-        showStatsButton.setOnClickListener(v -> {
-            Intent intent = new Intent(requireContext(), EventStatisticsActivity.class);
-            intent.putExtra("managerId", AuthManager.getInstance().getUserId());
-            startActivity(intent);
-        });
     }
 }
 
@@ -141,11 +117,13 @@ class HistoryPagerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     private final Fragment fragment;
     private final boolean isManager;
     private final int itemCount;
+    private final HistoryFragment.EventActionCallback callback;
 
-    public HistoryPagerAdapter(Fragment fragment, boolean isManager) {
+    public HistoryPagerAdapter(Fragment fragment, boolean isManager, HistoryFragment.EventActionCallback callback) {
         this.fragment = fragment;
         this.isManager = isManager;
         this.itemCount = isManager ? 2 : 1;
+        this.callback = callback;
     }
 
     @NonNull
@@ -201,11 +179,24 @@ class HistoryPagerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                     .findManagedEvents(userId);
 
             EventAdapter adapter = new EventAdapter();
+            adapter.setShowManagerActions(true);
             adapter.setOnEventClickListener(event -> {
                 Intent intent = new Intent(fragment.requireContext(),
                         EventDetailsActivity.class);
                 intent.putExtra("eventId", event.getEventId());
                 fragment.startActivity(intent);
+            });
+
+            adapter.setOnEventActionListener(new EventAdapter.OnEventActionListener() {
+                @Override
+                public void onStatisticsClick(EventSummaryDTO event) {
+                    callback.onStatisticsClick(event.getEventId());
+                }
+
+                @Override
+                public void onReportClick(EventSummaryDTO event) {
+                    callback.showReportFormatDialog(event.getEventId());
+                }
             });
 
             recyclerView.setAdapter(adapter);
