@@ -2,6 +2,7 @@ package com.example.blood_donor.ui.fragments;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -50,6 +51,7 @@ import com.google.android.material.textview.MaterialTextView;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -66,6 +68,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     private final Map<Marker, EventMarkerDTO> markerEventMap = new HashMap<>();
     private static final SimpleDateFormat dateFormat =
             new SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault());
+    private List<String> selectedBloodTypes = new ArrayList<>();
 
     private MaterialTextView eventTitleView;
     private MaterialTextView eventDateView;
@@ -77,7 +80,12 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     private View bloodTypeScroll;
     private MapSearchHandler searchHandler;
     private View rootView;
-
+    private MaterialButton startDateButton;
+    private MaterialButton endDateButton;
+    private MaterialButton clearDatesButton;
+    private Long selectedStartDate;
+    private Long selectedEndDate;
+    private View dateFilterContainer;
 
     public MapFragment() {
         this.eventService = ServiceLocator.getEventService();
@@ -104,6 +112,26 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         searchLayout = view.findViewById(R.id.search_layout);
         bloodTypeFilter = view.findViewById(R.id.bloodTypeFilter);
         bloodTypeScroll = view.findViewById(R.id.blood_type_scroll);
+        // Initialize date filter views
+        dateFilterContainer = view.findViewById(R.id.dateFilterContainer);
+        startDateButton = view.findViewById(R.id.startDateButton);
+        endDateButton = view.findViewById(R.id.endDateButton);
+        clearDatesButton = view.findViewById(R.id.clearDatesButton);
+
+        // Setup click listeners
+        startDateButton.setOnClickListener(v -> showDatePicker(true));
+        endDateButton.setOnClickListener(v -> showDatePicker(false));
+        clearDatesButton.setOnClickListener(v -> clearDates());
+
+        // Modify your existing filter toggle to show/hide date filter
+        searchLayout.setEndIconOnClickListener(v -> {
+            boolean isVisible = bloodTypeScroll.getVisibility() == View.VISIBLE;
+            bloodTypeScroll.setVisibility(isVisible ? View.GONE : View.VISIBLE);
+            dateFilterContainer.setVisibility(isVisible ? View.GONE : View.VISIBLE);
+        });
+
+        // Setup blood type chips
+        setupBloodTypeFilter(view.findViewById(R.id.bloodTypeFilter));
 
         view.findViewById(R.id.view_details_button).setOnClickListener(v -> {
             if (selectedEvent != null) {
@@ -118,9 +146,67 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         });
     }
 
+    private void initializeDateFilter(View view) {
+        startDateButton = view.findViewById(R.id.startDateButton);
+        endDateButton = view.findViewById(R.id.endDateButton);
+        clearDatesButton = view.findViewById(R.id.clearDatesButton);
+
+        startDateButton.setOnClickListener(v -> showDatePicker(true));
+        endDateButton.setOnClickListener(v -> showDatePicker(false));
+        clearDatesButton.setOnClickListener(v -> clearDates());
+    }
+
+    private void showDatePicker(boolean isStartDate) {
+        Calendar calendar = Calendar.getInstance();
+        if (isStartDate && selectedStartDate != null) {
+            calendar.setTimeInMillis(selectedStartDate);
+        } else if (!isStartDate && selectedEndDate != null) {
+            calendar.setTimeInMillis(selectedEndDate);
+        }
+
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    Calendar selectedCal = Calendar.getInstance();
+                    selectedCal.set(year, month, dayOfMonth);
+                    selectedCal.set(Calendar.HOUR_OF_DAY, 0);
+                    selectedCal.set(Calendar.MINUTE, 0);
+                    selectedCal.set(Calendar.SECOND, 0);
+
+                    if (isStartDate) {
+                        selectedStartDate = selectedCal.getTimeInMillis();
+                        startDateButton.setText(dateFormat.format(selectedCal.getTime()));
+                    } else {
+                        selectedEndDate = selectedCal.getTimeInMillis();
+                        endDateButton.setText(dateFormat.format(selectedCal.getTime()));
+                    }
+                    refreshEvents();
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+
+        // Set min/max dates if needed
+        if (!isStartDate && selectedStartDate != null) {
+            datePickerDialog.getDatePicker().setMinDate(selectedStartDate);
+        } else if (isStartDate && selectedEndDate != null) {
+            datePickerDialog.getDatePicker().setMaxDate(selectedEndDate);
+        }
+
+        datePickerDialog.show();
+    }
+
+    private void clearDates() {
+        selectedStartDate = null;
+        selectedEndDate = null;
+        startDateButton.setText("Start Date");
+        endDateButton.setText("End Date");
+        refreshEvents();
+    }
+
     private void setupBloodTypeFilter(ChipGroup bloodTypeFilter) {
         String[] bloodTypes = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
-        List<String> selectedTypes = new ArrayList<>();
 
         for (String bloodType : bloodTypes) {
             Chip chip = new Chip(requireContext());
@@ -128,14 +214,11 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
             chip.setCheckable(true);
             chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (isChecked) {
-                    selectedTypes.add(bloodType);
+                    selectedBloodTypes.add(bloodType);
                 } else {
-                    selectedTypes.remove(bloodType);
+                    selectedBloodTypes.remove(bloodType);
                 }
-                if (searchLayout.getEditText() != null &&
-                        !searchLayout.getEditText().getText().toString().isEmpty()) {
-                    searchHandler.performSearch(searchLayout.getEditText().getText().toString());
-                }
+                refreshEvents();
             });
             bloodTypeFilter.addView(chip);
         }
@@ -145,7 +228,6 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         ApiResponse<List<EventMarkerDTO>> response = eventService.getEventMarkers(query);
         if (response.isSuccess() && response.getData() != null) {
             updateMarkers(response.getData());
-
             if (!response.getData().isEmpty()) {
                 fitBoundsToMarkers(response.getData());
             }
@@ -153,7 +235,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private void fitBoundsToMarkers(List<EventMarkerDTO> events) {
-        if (events.isEmpty()) return;
+        if (events.isEmpty()) {
+            return;
+        }
 
         LatLngBounds.Builder builder = new LatLngBounds.Builder();
         for (EventMarkerDTO event : events) {
@@ -161,11 +245,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         }
 
         try {
-            // Add padding for better visibility
             int padding = getResources().getDimensionPixelSize(R.dimen.map_padding);
             LatLngBounds bounds = builder.build();
 
-            // Use rootView instead of view
             if (rootView != null) {
                 rootView.post(() -> {
                     map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
@@ -222,6 +304,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 searchLayout,
                 bloodTypeFilter,
                 bloodTypeScroll,
+                dateFilterContainer,  // Add the date filter container
                 new MapSearchHandler.SearchListener() {
                     @Override
                     public void onSearch(EventQueryDTO query) {
@@ -236,9 +319,35 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         );
 
         checkLocationPermission();
-
+        startDateButton.setOnClickListener(v -> showDatePicker(true));
+        endDateButton.setOnClickListener(v -> showDatePicker(false));
+        clearDatesButton.setOnClickListener(v -> {
+            clearDates();
+            searchHandler.clearDateFilters();
+        });
 
     }
+
+    private void refreshEvents() {
+        if (map == null) return;
+
+        LatLng center = map.getCameraPosition().target;
+        EventQueryDTO query = new EventQueryDTO(
+                center.latitude,
+                center.longitude,
+                (double) map.getCameraPosition().zoom,
+                searchLayout.getEditText().getText().toString(),
+                selectedBloodTypes.isEmpty() ? null : selectedBloodTypes,
+                "distance",
+                "asc",
+                1,
+                50,
+                selectedStartDate,
+                selectedEndDate
+        );
+        executeSearch(query);
+    }
+
     private void loadEventsInView() {
         if (map == null) return;
 
@@ -254,7 +363,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 "distance",
                 "asc",
                 1,
-                50
+                50,
+                null,
+                null
         );
 
         ApiResponse<List<EventMarkerDTO>> response = eventService.getEventMarkers(query);

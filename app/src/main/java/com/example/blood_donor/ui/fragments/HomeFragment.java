@@ -49,6 +49,9 @@ public class HomeFragment extends Fragment {
     private ChipGroup bloodTypeFilter;
     private String currentSearchTerm;
     private List<String> selectedBloodTypes = new ArrayList<>();
+    private Long selectedStartDate;
+    private Long selectedEndDate;
+
 
     private final List<String> funFacts = Arrays.asList(
             "One donation can save up to three lives",
@@ -83,12 +86,10 @@ public class HomeFragment extends Fragment {
         filterContainer = view.findViewById(R.id.filterContainer);
         bloodTypeFilter = view.findViewById(R.id.bloodTypeFilter);
 
-        searchLayout.setEndIconOnClickListener(v ->
-                filterContainer.setVisibility(
-                        filterContainer.getVisibility() == View.VISIBLE ?
-                                View.GONE : View.VISIBLE
-                )
-        );
+        searchLayout.setEndIconOnClickListener(v -> {
+            boolean isVisible = filterContainer.getVisibility() == View.VISIBLE;
+            filterContainer.setVisibility(isVisible ? View.GONE : View.VISIBLE);
+        });
     }
 
     private void setupFunFactsCarousel() {
@@ -195,7 +196,9 @@ public class HomeFragment extends Fragment {
                 "date", // sortBy
                 "desc", // sortOrder
                 page + 1, // page number
-                PAGE_SIZE // pageSize
+                PAGE_SIZE, // pageSize,
+                selectedStartDate,
+                selectedEndDate
         );
 
         ApiResponse<List<EventSummaryDTO>> response = eventService.getEventSummaries(query);

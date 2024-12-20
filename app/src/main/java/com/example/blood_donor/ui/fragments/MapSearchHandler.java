@@ -29,10 +29,13 @@ public class MapSearchHandler {
     private final EditText searchInput;
     private final ChipGroup bloodTypeFilter;
     private final View bloodTypeScroll;
+    private final View dateFilterContainer;
     private final SearchListener searchListener;
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private final List<String> selectedBloodTypes = new ArrayList<>();
     private final Geocoder geocoder;
+    private Long selectedStartDate;
+    private Long selectedEndDate;
 
     public interface SearchListener {
         void onSearch(EventQueryDTO query);
@@ -40,13 +43,15 @@ public class MapSearchHandler {
     }
 
     public MapSearchHandler(Context context, GoogleMap map, TextInputLayout searchLayout,
-                            ChipGroup bloodTypeFilter, View bloodTypeScroll, SearchListener listener) {
+                            ChipGroup bloodTypeFilter, View bloodTypeScroll,
+                            View dateFilterContainer, SearchListener listener) {
         this.context = context;
         this.map = map;
         this.searchLayout = searchLayout;
         this.searchInput = searchLayout.getEditText();
         this.bloodTypeFilter = bloodTypeFilter;
         this.bloodTypeScroll = bloodTypeScroll;
+        this.dateFilterContainer = dateFilterContainer;
         this.searchListener = listener;
         this.geocoder = new Geocoder(context);
 
@@ -75,9 +80,9 @@ public class MapSearchHandler {
 
         // Setup filter toggle
         searchLayout.setEndIconOnClickListener(v -> {
-            bloodTypeScroll.setVisibility(
-                    bloodTypeScroll.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE
-            );
+            boolean isVisible = bloodTypeScroll.getVisibility() == View.VISIBLE;
+            bloodTypeScroll.setVisibility(isVisible ? View.GONE : View.VISIBLE);
+            dateFilterContainer.setVisibility(isVisible ? View.GONE : View.VISIBLE);
         });
 
         setupBloodTypeFilter();
@@ -125,14 +130,15 @@ public class MapSearchHandler {
                     "distance",
                     "asc",
                     1,
-                    50
+                    50,
+                    selectedStartDate,    // Add date filters
+                    selectedEndDate
             );
 
             searchListener.onSearch(queryDTO);
 
         } catch (IOException e) {
             e.printStackTrace();
-            // Fall back to text-only search
             performTextSearch(query);
         }
     }
@@ -148,8 +154,27 @@ public class MapSearchHandler {
                 "distance",
                 "asc",
                 1,
-                50
+                50,
+                selectedStartDate,    // Add date filters
+                selectedEndDate
         );
         searchListener.onSearch(queryDTO);
+    }
+
+    // Add methods for date handling
+    public void setDateFilters(Long startDate, Long endDate) {
+        this.selectedStartDate = startDate;
+        this.selectedEndDate = endDate;
+        if (searchInput.length() > 0) {
+            performSearch(searchInput.getText().toString());
+        }
+    }
+
+    public void clearDateFilters() {
+        this.selectedStartDate = null;
+        this.selectedEndDate = null;
+        if (searchInput.length() > 0) {
+            performSearch(searchInput.getText().toString());
+        }
     }
 }

@@ -26,6 +26,8 @@ public class MapSearchView extends SearchView {
     private final Runnable searchRunnable;
     private List<String> selectedBloodTypes = new ArrayList<>();
     private ChipGroup bloodTypeFilter;
+    private Long selectedStartDate;
+    private Long selectedEndDate;
 
     public interface SearchListener {
         void onSearch(EventQueryDTO query);
@@ -94,14 +96,15 @@ public class MapSearchView extends SearchView {
                     "distance",
                     "asc",
                     1,
-                    50
+                    50,
+                    selectedStartDate,   // Add date filters
+                    selectedEndDate
             );
 
             searchListener.onSearch(queryDTO);
 
         } catch (IOException e) {
             e.printStackTrace();
-            // Fall back to text-only search
             performTextSearch(query);
         }
     }
@@ -117,13 +120,32 @@ public class MapSearchView extends SearchView {
                 "distance",
                 "asc",
                 1,
-                50
+                50,
+                selectedStartDate,   // Add date filters
+                selectedEndDate
         );
         searchListener.onSearch(queryDTO);
     }
 
     public void setSelectedBloodTypes(List<String> bloodTypes) {
         this.selectedBloodTypes = bloodTypes;
+        if (!TextUtils.isEmpty(getQuery())) {
+            performSearch(getQuery().toString());
+        }
+    }
+
+    // Add methods for date handling
+    public void setDateFilters(Long startDate, Long endDate) {
+        this.selectedStartDate = startDate;
+        this.selectedEndDate = endDate;
+        if (!TextUtils.isEmpty(getQuery())) {
+            performSearch(getQuery().toString());
+        }
+    }
+
+    public void clearDateFilters() {
+        this.selectedStartDate = null;
+        this.selectedEndDate = null;
         if (!TextUtils.isEmpty(getQuery())) {
             performSearch(getQuery().toString());
         }

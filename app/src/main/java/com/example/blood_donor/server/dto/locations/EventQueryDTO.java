@@ -12,8 +12,9 @@ public class EventQueryDTO {
     private String sortOrder;
     private Integer page;
     private Integer pageSize;
+    private Long startDateFilter; // Added for date filtering
+    private Long endDateFilter;   // Added for date filtering
 
-    // Update constructor to match these fields exactly
     public EventQueryDTO(
             Double latitude,
             Double longitude,
@@ -23,7 +24,9 @@ public class EventQueryDTO {
             String sortBy,
             String sortOrder,
             Integer page,
-            Integer pageSize
+            Integer pageSize,
+            Long startDateFilter,
+            Long endDateFilter
     ) {
         this.latitude = latitude;
         this.longitude = longitude;
@@ -34,6 +37,24 @@ public class EventQueryDTO {
         this.sortOrder = sortOrder;
         this.page = page;
         this.pageSize = pageSize;
+        this.startDateFilter = startDateFilter;
+        this.endDateFilter = endDateFilter;
+    }
+
+    public Long getStartDateFilter() {
+        return startDateFilter;
+    }
+
+    public void setStartDateFilter(Long startDateFilter) {
+        this.startDateFilter = startDateFilter;
+    }
+
+    public Long getEndDateFilter() {
+        return endDateFilter;
+    }
+
+    public void setEndDateFilter(Long endDateFilter) {
+        this.endDateFilter = endDateFilter;
     }
 
     public Double getLatitude() {

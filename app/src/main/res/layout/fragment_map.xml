@@ -62,6 +62,39 @@
                     app:singleSelection="false" />
 
             </HorizontalScrollView>
+            <LinearLayout
+                android:id="@+id/dateFilterContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="8dp"
+                android:visibility="gone">  <!-- Initially hidden, show with blood type filter -->
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/startDateButton"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:text="Start Date" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/endDateButton"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:text="End Date" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearDatesButton"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Clear" />
+            </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
