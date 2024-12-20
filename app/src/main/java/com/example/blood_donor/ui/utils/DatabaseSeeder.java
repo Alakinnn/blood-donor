@@ -79,7 +79,7 @@ public class DatabaseSeeder {
                     "Senior Center Blood Drive",
                     "Help us meet our community's blood supply needs. Special assistance available for elderly donors. Morning appointments preferred.",
                     "97 Hillview Ave, Los Altos, CA 94022",
-                    "A+,O-,AB+",
+                    "A+,AB+,O-",
                     "120"
             }
     };

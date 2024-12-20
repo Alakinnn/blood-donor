@@ -48,11 +48,11 @@ public class EventRepository implements IEventRepository {
             db = dbHelper.getReadableDatabase();
 
             QueryBuilder queryBuilder = new QueryBuilder();
-            queryBuilder.select("e.id AS event_id, e.title, e.description, " +
+            queryBuilder.select("e.id AS event_id, e.title, e.description AS event_description, " +
                             "e.start_time, e.end_time, e.blood_type_targets, " +
                             "e.blood_collected, e.host_id, e.status, " +
                             "e.donation_start_time, e.donation_end_time, " +
-                            "l.id AS location_id, l.address, l.latitude, l.longitude, l.description")
+                            "l.id AS location_id, l.address, l.latitude, l.longitude")
                     .from("events e")
                     .join("locations l ON e.location_id = l.id")
                     .where("e.status != ?", "CANCELLED");
@@ -177,7 +177,6 @@ public class EventRepository implements IEventRepository {
                             cursor.getDouble(cursor.getColumnIndexOrThrow("latitude")),
                             cursor.getDouble(cursor.getColumnIndexOrThrow("longitude"))
                     )
-                    .description(cursor.getString(cursor.getColumnIndexOrThrow("description")))
                     .build();
 
             // Parse donation times
@@ -198,7 +197,7 @@ public class EventRepository implements IEventRepository {
             DonationEvent event = new DonationEvent(
                     eventId,
                     cursor.getString(cursor.getColumnIndexOrThrow("title")),
-                    cursor.getString(cursor.getColumnIndexOrThrow("description")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("event_description")),
                     cursor.getLong(cursor.getColumnIndexOrThrow("start_time")),
                     cursor.getLong(cursor.getColumnIndexOrThrow("end_time")),
                     location,
@@ -323,11 +322,11 @@ public class EventRepository implements IEventRepository {
             checkCursor.close();
 
             // Now do the full query with join
-            String query = "SELECT e.id AS event_id, e.title, e.description, " +
+            String query = "SELECT e.id AS event_id, e.title, e.description AS event_description, " +
                     "e.start_time, e.end_time, e.blood_type_targets, " +
                     "e.blood_collected, e.host_id, e.status, " +
                     "e.donation_start_time, e.donation_end_time, " +
-                    "l.id AS location_id, l.address, l.latitude, l.longitude, l.description " +
+                    "l.id AS location_id, l.address, l.latitude, l.longitude, l.description AS location_description " +
                     "FROM events e " +
                     "JOIN locations l ON e.location_id = l.id " +
                     "WHERE e.id = ?";

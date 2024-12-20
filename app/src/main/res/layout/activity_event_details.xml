@@ -23,7 +23,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_back"
-                android:tint="@color/colorPrimary"/>
+                app:tint="@color/colorPrimary" />
 
             <com.google.android.material.textview.MaterialTextView
                 style="@style/TextAppearance.BloodDonor.Headline2"
@@ -38,6 +38,8 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:paddingBottom="80dp"
+        android:clipToPadding="false"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -46,6 +48,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Title and DateTime Section -->
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/eventTitle"
                 style="@style/TextAppearance.BloodDonor.Headline1"
@@ -71,6 +74,77 @@
                 android:textColor="@color/colorPrimary"
                 android:visibility="gone"/>
 
+            <!-- Address -->
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/eventAddress"
+                style="@style/TextAppearance.BloodDonor.Body1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/textSecondary"/>
+
+            <!-- Event Description Card -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.BloodDonor.CardView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        style="@style/TextAppearance.BloodDonor.Body1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Description"
+                        android:textStyle="bold"
+                        android:textColor="@color/textPrimary"/>
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/eventDescription"
+                        style="@style/TextAppearance.BloodDonor.Body1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="@color/textSecondary"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Host Info Card -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.BloodDonor.CardView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        style="@style/TextAppearance.BloodDonor.Body1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Host Information"
+                        android:textStyle="bold"
+                        android:textColor="@color/textPrimary"/>
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/hostInfo"
+                        style="@style/TextAppearance.BloodDonor.Body1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="@color/textSecondary"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Blood Types Card -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.BloodDonor.CardView"
@@ -88,7 +162,6 @@
                         style="@style/TextAppearance.BloodDonor.Body1"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
                         android:text="Required Blood Types"
                         android:textStyle="bold"
                         android:textColor="@color/textPrimary"/>
@@ -100,44 +173,6 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:textColor="@color/textSecondary"/>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/eventAddress"
-                style="@style/TextAppearance.BloodDonor.Body1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="@color/textSecondary"/>
-
-            <!-- Event Details Card -->
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.BloodDonor.CardView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <com.google.android.material.textview.MaterialTextView
-                        android:id="@+id/eventDescription"
-                        style="@style/TextAppearance.BloodDonor.Body1"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/textSecondary"/>
-
-                    <com.google.android.material.textview.MaterialTextView
-                        android:id="@+id/hostInfo"
-                        style="@style/TextAppearance.BloodDonor.Body1"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:textColor="@color/textPrimary"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -158,24 +193,16 @@
                         style="@style/TextAppearance.BloodDonor.Body1"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Required Progress"
+                        android:text="Collection Progress"
                         android:textStyle="bold"
                         android:textColor="@color/textPrimary"/>
-
-                    <com.google.android.material.textview.MaterialTextView
-                        android:id="@+id/requiredProgress"
-                        style="@style/TextAppearance.BloodDonor.Body1"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:textColor="@color/textSecondary"/>
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/bloodProgress"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        app:trackColor="@color/colorPrimaryLight"
+                        app:trackColor="#E0E0E0"
                         app:indicatorColor="@color/colorPrimary"/>
 
                     <com.google.android.material.textview.MaterialTextView
@@ -193,29 +220,46 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp">
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal"
+                android:weightSum="2">
 
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/donorCount"
-                    style="@style/TextAppearance.BloodDonor.Body1"
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:textAlignment="center"
-                    android:textColor="@color/textPrimary"/>
+                    android:orientation="vertical"
+                    android:gravity="center">
 
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/volunteerCount"
-                    style="@style/TextAppearance.BloodDonor.Body1"
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/donorCount"
+                        style="@style/TextAppearance.BloodDonor.Body1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textStyle="bold"
+                        android:textColor="@color/textPrimary"/>
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:textAlignment="center"
-                    android:textColor="@color/textPrimary"/>
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/volunteerCount"
+                        style="@style/TextAppearance.BloodDonor.Body1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textStyle="bold"
+                        android:textColor="@color/textPrimary"/>
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
+    <!-- Register/Volunteer Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/actionButton"
         style="@style/Widget.BloodDonor.Button"
