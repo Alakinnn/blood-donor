@@ -24,6 +24,7 @@ import org.json.JSONObject;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -54,23 +55,38 @@ public class EventRepository implements IEventRepository {
                             "e.donation_start_time, e.donation_end_time, " +
                             "l.id AS location_id, l.address, l.latitude, l.longitude")
                     .from("events e")
-                    .join("locations l ON e.location_id = l.id")
-                    .where("e.status != ?", "CANCELLED");
+                    .join("locations l ON e.location_id = l.id");
 
-            // Add search conditions
-            if (query.getSearchTerm() != null && !query.getSearchTerm().isEmpty()) {
-                queryBuilder.and("e.title LIKE ?", "%" + query.getSearchTerm() + "%");
+            List<String> conditions = new ArrayList<>();
+            List<String> args = new ArrayList<>();
+
+            // Base condition
+            conditions.add("e.status != ?");
+            args.add("CANCELLED");
+
+            // Search term condition
+            if (query.getSearchTerm() != null && !query.getSearchTerm().trim().isEmpty()) {
+                String searchTerm = "%" + query.getSearchTerm().trim() + "%";
+                conditions.add("(e.title LIKE ? OR e.description LIKE ? OR l.address LIKE ?)");
+                args.add(searchTerm);
+                args.add(searchTerm);
+                args.add(searchTerm);
             }
 
-            // Add blood type filter
+            // Blood type filter
             if (query.getBloodTypes() != null && !query.getBloodTypes().isEmpty()) {
-                String bloodTypeCondition = query.getBloodTypes().stream()
-                        .map(type -> "required_blood_types LIKE ?")
-                        .collect(Collectors.joining(" OR "));
-                queryBuilder.and("(" + bloodTypeCondition + ")",
-                        query.getBloodTypes().stream()
-                                .map(type -> "%" + type + "%")
-                                .toArray(String[]::new));
+                List<String> bloodTypeConditions = new ArrayList<>();
+                for (String bloodType : query.getBloodTypes()) {
+                    bloodTypeConditions.add("e.blood_type_targets LIKE ?");
+                    args.add("%" + bloodType + "%");
+                }
+                conditions.add("(" + String.join(" OR ", bloodTypeConditions) + ")");
+            }
+
+            // Combine all conditions
+            if (!conditions.isEmpty()) {
+                queryBuilder.where(String.join(" AND ", conditions),
+                        args.toArray(new String[0]));
             }
 
             // Add sorting
@@ -89,16 +105,32 @@ public class EventRepository implements IEventRepository {
                 events.add(cursorToEvent(cursor));
             }
 
-            // Handle distance-based operations if location provided
+            // Handle distance calculations if location provided
             if (query.getLatitude() != null && query.getLongitude() != null) {
-                handleDistanceOperations(events, query);
+                for (DonationEvent event : events) {
+                    double distance = calculateDistance(
+                            query.getLatitude(), query.getLongitude(),
+                            event.getLocation().getLatitude(),
+                            event.getLocation().getLongitude()
+                    );
+                    event.setDistance(distance);
+                }
+
+                // Sort by distance if requested
+                if ("distance".equals(query.getSortBy())) {
+                    Collections.sort(events, (e1, e2) -> {
+                        int result = Double.compare(e1.getDistance(), e2.getDistance());
+                        return "desc".equalsIgnoreCase(query.getSortOrder()) ? -result : result;
+                    });
+                }
             }
 
             return events;
+
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR, e.getMessage());
         } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            if (cursor != null) cursor.close();
         }
     }
 

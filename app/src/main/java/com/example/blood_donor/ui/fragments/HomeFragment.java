@@ -2,6 +2,9 @@ package com.example.blood_donor.ui.fragments;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -25,8 +28,12 @@ import com.example.blood_donor.ui.adapters.FunFactAdapter;
 import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.ui.manager.ServiceLocator;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputLayout;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -39,6 +46,9 @@ public class HomeFragment extends Fragment {
     private boolean isLoading = false;
     private final EventService eventService;
     private static final int PAGE_SIZE = 20;
+    private ChipGroup bloodTypeFilter;
+    private String currentSearchTerm;
+    private List<String> selectedBloodTypes = new ArrayList<>();
 
     private final List<String> funFacts = Arrays.asList(
             "One donation can save up to three lives",
@@ -63,7 +73,7 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        loadUserName(); // Call it here instead of in onCreateView
+        loadUserName();
     }
 
     private void initializeViews(View view) {
@@ -71,6 +81,7 @@ public class HomeFragment extends Fragment {
         eventList = view.findViewById(R.id.eventList);
         searchLayout = view.findViewById(R.id.searchLayout);
         filterContainer = view.findViewById(R.id.filterContainer);
+        bloodTypeFilter = view.findViewById(R.id.bloodTypeFilter);
 
         searchLayout.setEndIconOnClickListener(v ->
                 filterContainer.setVisibility(
@@ -112,7 +123,55 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupSearch() {
-        // Implement search functionality
+        searchLayout.getEditText().addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                currentSearchTerm = s.toString();
+                // Debounce search with a handler
+                searchHandler.removeCallbacks(searchRunnable);
+                searchHandler.postDelayed(searchRunnable, 300);
+            }
+        });
+
+        setupBloodTypeFilter();
+    }
+
+    private final Handler searchHandler = new Handler();
+    private final Runnable searchRunnable = new Runnable() {
+        @Override
+        public void run() {
+            refreshEvents();
+        }
+    };
+
+    private void setupBloodTypeFilter() {
+        String[] bloodTypes = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
+        for (String bloodType : bloodTypes) {
+            Chip chip = new Chip(requireContext());
+            chip.setText(bloodType);
+            chip.setCheckable(true);
+            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    selectedBloodTypes.add(bloodType);
+                } else {
+                    selectedBloodTypes.remove(bloodType);
+                }
+                // Refresh events immediately when selection changes
+                refreshEvents();
+            });
+            bloodTypeFilter.addView(chip);
+        }
+    }
+
+    private void refreshEvents() {
+        eventAdapter.clearEvents();
+        loadMoreEvents(0);
     }
 
 
@@ -132,7 +191,7 @@ public class HomeFragment extends Fragment {
                 null, // longitude
                 null, // zoomLevel
                 searchLayout.getEditText().getText().toString(), // searchTerm
-                null, // bloodTypes - implement filter later
+                selectedBloodTypes.isEmpty() ? null : selectedBloodTypes, // Add blood type filter
                 "date", // sortBy
                 "desc", // sortOrder
                 page + 1, // page number

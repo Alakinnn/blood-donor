@@ -1,6 +1,7 @@
 package com.example.blood_donor.ui.fragments;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -26,6 +27,7 @@ import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.ui.EventDetailsActivity;
 import com.example.blood_donor.ui.manager.ServiceLocator;
+import com.example.blood_donor.ui.map.MapSearchView;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -41,9 +43,13 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.textview.MaterialTextView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -66,6 +72,12 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     private MaterialTextView eventProgressView;
     private EventMarkerDTO selectedEvent;
     private MaterialButton directionsButton;
+    private TextInputLayout searchLayout;
+    private ChipGroup bloodTypeFilter;
+    private View bloodTypeScroll;
+    private MapSearchHandler searchHandler;
+    private View rootView;
+
 
     public MapFragment() {
         this.eventService = ServiceLocator.getEventService();
@@ -73,11 +85,11 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_map, container, false);
-        initializeViews(view);
+        rootView = inflater.inflate(R.layout.fragment_map, container, false);
+        initializeViews(rootView);
         setupLocationClient();
         setupMap();
-        return view;
+        return rootView;
     }
 
     private void initializeViews(View view) {
@@ -89,6 +101,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         eventDateView = view.findViewById(R.id.event_date);
         eventProgressView = view.findViewById(R.id.event_progress);
         directionsButton = view.findViewById(R.id.directions_button);
+        searchLayout = view.findViewById(R.id.search_layout);
+        bloodTypeFilter = view.findViewById(R.id.bloodTypeFilter);
+        bloodTypeScroll = view.findViewById(R.id.blood_type_scroll);
 
         view.findViewById(R.id.view_details_button).setOnClickListener(v -> {
             if (selectedEvent != null) {
@@ -101,6 +116,64 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 openGoogleMapsNavigation(selectedEvent);
             }
         });
+    }
+
+    private void setupBloodTypeFilter(ChipGroup bloodTypeFilter) {
+        String[] bloodTypes = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
+        List<String> selectedTypes = new ArrayList<>();
+
+        for (String bloodType : bloodTypes) {
+            Chip chip = new Chip(requireContext());
+            chip.setText(bloodType);
+            chip.setCheckable(true);
+            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    selectedTypes.add(bloodType);
+                } else {
+                    selectedTypes.remove(bloodType);
+                }
+                if (searchLayout.getEditText() != null &&
+                        !searchLayout.getEditText().getText().toString().isEmpty()) {
+                    searchHandler.performSearch(searchLayout.getEditText().getText().toString());
+                }
+            });
+            bloodTypeFilter.addView(chip);
+        }
+    }
+
+    private void executeSearch(EventQueryDTO query) {
+        ApiResponse<List<EventMarkerDTO>> response = eventService.getEventMarkers(query);
+        if (response.isSuccess() && response.getData() != null) {
+            updateMarkers(response.getData());
+
+            if (!response.getData().isEmpty()) {
+                fitBoundsToMarkers(response.getData());
+            }
+        }
+    }
+
+    private void fitBoundsToMarkers(List<EventMarkerDTO> events) {
+        if (events.isEmpty()) return;
+
+        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+        for (EventMarkerDTO event : events) {
+            builder.include(new LatLng(event.getLatitude(), event.getLongitude()));
+        }
+
+        try {
+            // Add padding for better visibility
+            int padding = getResources().getDimensionPixelSize(R.dimen.map_padding);
+            LatLngBounds bounds = builder.build();
+
+            // Use rootView instead of view
+            if (rootView != null) {
+                rootView.post(() -> {
+                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
+                });
+            }
+        } catch (Exception e) {
+            Log.e("MapFragment", "Error fitting bounds", e);
+        }
     }
 
     private void openGoogleMapsNavigation(EventMarkerDTO event) {
@@ -137,11 +210,31 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
+    @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.setOnCameraIdleListener(this::loadEventsInView);
         map.setOnMarkerClickListener(this::onMarkerClick);
+        searchHandler = new MapSearchHandler(
+                requireContext(),
+                map,
+                searchLayout,
+                bloodTypeFilter,
+                bloodTypeScroll,
+                new MapSearchHandler.SearchListener() {
+                    @Override
+                    public void onSearch(EventQueryDTO query) {
+                        executeSearch(query);
+                    }
+
+                    @Override
+                    public void onSearchCleared() {
+                        loadEventsInView();
+                    }
+                }
+        );
+
         checkLocationPermission();
 
 

@@ -1,78 +1,109 @@
-package com.example.blood_donor.ui.map;
+package com.example.blood_donor.ui.fragments;
 
 import android.content.Context;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.TextUtils;
-import android.widget.SearchView;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.View;
+import android.widget.EditText;
 
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapSearchView extends SearchView {
+public class MapSearchHandler {
+    private final Context context;
     private final GoogleMap map;
-    private final Geocoder geocoder;
+    private final TextInputLayout searchLayout;
+    private final EditText searchInput;
+    private final ChipGroup bloodTypeFilter;
+    private final View bloodTypeScroll;
     private final SearchListener searchListener;
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
-    private final Runnable searchRunnable;
-    private List<String> selectedBloodTypes = new ArrayList<>();
-    private ChipGroup bloodTypeFilter;
+    private final List<String> selectedBloodTypes = new ArrayList<>();
+    private final Geocoder geocoder;
 
     public interface SearchListener {
         void onSearch(EventQueryDTO query);
         void onSearchCleared();
     }
 
-    public MapSearchView(Context context, GoogleMap map, SearchListener listener, ChipGroup bloodTypeFilter) {
-        super(context);
+    public MapSearchHandler(Context context, GoogleMap map, TextInputLayout searchLayout,
+                            ChipGroup bloodTypeFilter, View bloodTypeScroll, SearchListener listener) {
+        this.context = context;
         this.map = map;
-        this.geocoder = new Geocoder(context);
-        this.searchListener = listener;
+        this.searchLayout = searchLayout;
+        this.searchInput = searchLayout.getEditText();
         this.bloodTypeFilter = bloodTypeFilter;
+        this.bloodTypeScroll = bloodTypeScroll;
+        this.searchListener = listener;
+        this.geocoder = new Geocoder(context);
 
-        searchRunnable = () -> performSearch(getQuery().toString());
-        setupSearchListener();
+        setup();
     }
 
-    private void setupSearchListener() {
-        setOnQueryTextListener(new OnQueryTextListener() {
+    private void setup() {
+        // Setup search input
+        searchInput.addTextChangedListener(new TextWatcher() {
             @Override
-            public boolean onQueryTextSubmit(String query) {
-                performSearch(query);
-                clearFocus(); // Hide keyboard
-                return true;
-            }
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
-            public boolean onQueryTextChange(String newText) {
-                if (TextUtils.isEmpty(newText)) {
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (s.length() == 0) {
                     searchListener.onSearchCleared();
-                    return true;
+                } else {
+                    searchHandler.removeCallbacksAndMessages(null);
+                    searchHandler.postDelayed(() -> performSearch(s.toString()), 300);
                 }
-
-                // Debounce search
-                searchHandler.removeCallbacks(searchRunnable);
-                searchHandler.postDelayed(searchRunnable, 300);
-                return true;
             }
         });
 
-        setOnCloseListener(() -> {
-            searchListener.onSearchCleared();
-            return false;
+        // Setup filter toggle
+        searchLayout.setEndIconOnClickListener(v -> {
+            bloodTypeScroll.setVisibility(
+                    bloodTypeScroll.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE
+            );
         });
+
+        setupBloodTypeFilter();
     }
 
-    private void performSearch(String query) {
+    private void setupBloodTypeFilter() {
+        String[] bloodTypes = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
+        for (String bloodType : bloodTypes) {
+            Chip chip = new Chip(context);
+            chip.setText(bloodType);
+            chip.setCheckable(true);
+            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    selectedBloodTypes.add(bloodType);
+                } else {
+                    selectedBloodTypes.remove(bloodType);
+                }
+                if (searchInput.length() > 0) {
+                    performSearch(searchInput.getText().toString());
+                }
+            });
+            bloodTypeFilter.addView(chip);
+        }
+    }
+
+    void performSearch(String query) {
         try {
             LatLng searchLocation = null;
             // Try to geocode the query first
@@ -120,12 +151,5 @@ public class MapSearchView extends SearchView {
                 50
         );
         searchListener.onSearch(queryDTO);
-    }
-
-    public void setSelectedBloodTypes(List<String> bloodTypes) {
-        this.selectedBloodTypes = bloodTypes;
-        if (!TextUtils.isEmpty(getQuery())) {
-            performSearch(getQuery().toString());
-        }
     }
 }
