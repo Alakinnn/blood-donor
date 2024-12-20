@@ -139,53 +139,39 @@ public class EventRepository implements IEventRepository {
 
     private DonationEvent cursorToEvent(Cursor cursor) {
         try {
-            // Get column indices first and check if they exist
-            int eventIdColIndex = cursor.getColumnIndex("event_id");
-            int idColIndex = cursor.getColumnIndex("id");  // Fallback for simple queries
+            String eventId = cursor.getString(cursor.getColumnIndexOrThrow("event_id"));
 
-            // Determine which column to use for event ID
-            String eventId;
-            if (eventIdColIndex != -1) {
-                eventId = cursor.getString(eventIdColIndex);
-                Log.d("EventRepository", "Using event_id column: " + eventId);
-            } else if (idColIndex != -1) {
-                eventId = cursor.getString(idColIndex);
-                Log.d("EventRepository", "Using id column: " + eventId);
-            } else {
-                throw new RuntimeException("No event ID column found in cursor");
-            }
-
-            // Get the blood type data
+            // Get the JSON strings
             String bloodTypeTargetsJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_type_targets"));
             String bloodCollectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
 
             Log.d("EventRepository", "Blood type targets JSON: " + bloodTypeTargetsJson);
             Log.d("EventRepository", "Blood collected JSON: " + bloodCollectedJson);
 
-            // Parse JSONs into target and collected maps
+            // Parse blood type targets into a map
             Map<String, Double> bloodTypeTargets = new HashMap<>();
-            JSONObject targets = new JSONObject(bloodTypeTargetsJson);
-            Iterator<String> bloodTypes = targets.keys();
-            while (bloodTypes.hasNext()) {
-                String bloodType = bloodTypes.next();
-                double targetAmount = targets.getDouble(bloodType);
-                bloodTypeTargets.put(bloodType, targetAmount);
-                Log.d("EventRepository", String.format("Blood type %s - Target: %.2f",
-                        bloodType, targetAmount));
+            try {
+                JSONObject targets = new JSONObject(bloodTypeTargetsJson);
+                Iterator<String> keys = targets.keys();
+                while (keys.hasNext()) {
+                    String bloodType = keys.next();
+                    try {
+                        double targetAmount = targets.getDouble(bloodType);
+                        bloodTypeTargets.put(bloodType, targetAmount);
+                        Log.d("EventRepository", String.format("Blood type %s - Target: %.2f",
+                                bloodType, targetAmount));
+                    } catch (JSONException e) {
+                        Log.e("EventRepository", "Error parsing target for blood type: " + bloodType, e);
+                        bloodTypeTargets.put(bloodType, 0.0); // Default to 0 if parsing fails
+                    }
+                }
+            } catch (JSONException e) {
+                Log.e("EventRepository", "Error parsing blood type targets JSON", e);
             }
 
-            // Get location ID
-            int locationIdColIndex = cursor.getColumnIndex("location_id");
-            String locationId;
-            if (locationIdColIndex != -1) {
-                locationId = cursor.getString(locationIdColIndex);
-            } else {
-                locationId = cursor.getString(cursor.getColumnIndexOrThrow("location_id"));
-            }
-
-            // Create location object
+            // Create location
             Location location = new Location.Builder()
-                    .locationId(locationId)
+                    .locationId(cursor.getString(cursor.getColumnIndexOrThrow("location_id")))
                     .address(cursor.getString(cursor.getColumnIndexOrThrow("address")))
                     .coordinates(
                             cursor.getDouble(cursor.getColumnIndexOrThrow("latitude")),
@@ -194,13 +180,21 @@ public class EventRepository implements IEventRepository {
                     .description(cursor.getString(cursor.getColumnIndexOrThrow("description")))
                     .build();
 
+            // Parse donation times
             String donationStartTimeStr = cursor.getString(cursor.getColumnIndexOrThrow("donation_start_time"));
             String donationEndTimeStr = cursor.getString(cursor.getColumnIndexOrThrow("donation_end_time"));
 
-            LocalTime donationStartTime = donationStartTimeStr != null ? LocalTime.parse(donationStartTimeStr) : null;
-            LocalTime donationEndTime = donationEndTimeStr != null ? LocalTime.parse(donationEndTimeStr) : null;
+            LocalTime donationStartTime = null;
+            LocalTime donationEndTime = null;
 
-            // Create event object
+            if (donationStartTimeStr != null) {
+                donationStartTime = LocalTime.parse(donationStartTimeStr);
+            }
+            if (donationEndTimeStr != null) {
+                donationEndTime = LocalTime.parse(donationEndTimeStr);
+            }
+
+            // Create event
             DonationEvent event = new DonationEvent(
                     eventId,
                     cursor.getString(cursor.getColumnIndexOrThrow("title")),
@@ -208,32 +202,30 @@ public class EventRepository implements IEventRepository {
                     cursor.getLong(cursor.getColumnIndexOrThrow("start_time")),
                     cursor.getLong(cursor.getColumnIndexOrThrow("end_time")),
                     location,
-                    bloodTypeTargets,  // Pass only the targets map as required by constructor
+                    bloodTypeTargets,
                     cursor.getString(cursor.getColumnIndexOrThrow("host_id")),
                     donationStartTime,
                     donationEndTime
             );
 
-            // After event creation, set the collected amounts
+            // Set collected amounts
             try {
                 JSONObject collected = new JSONObject(bloodCollectedJson);
-                bloodTypes = collected.keys();
-                while (bloodTypes.hasNext()) {
-                    String bloodType = bloodTypes.next();
-                    double collectedAmount = collected.getDouble(bloodType);
-                    event.recordDonation(bloodType, collectedAmount);
-                    Log.d("EventRepository", String.format("Blood type %s - Collected: %.2f",
-                            bloodType, collectedAmount));
+                Iterator<String> keys = collected.keys();
+                while (keys.hasNext()) {
+                    String bloodType = keys.next();
+                    try {
+                        double collectedAmount = collected.getDouble(bloodType);
+                        event.recordDonation(bloodType, collectedAmount);
+                        Log.d("EventRepository", String.format("Blood type %s - Collected: %.2f",
+                                bloodType, collectedAmount));
+                    } catch (JSONException e) {
+                        Log.e("EventRepository", "Error parsing collected amount for blood type: " + bloodType, e);
+                    }
                 }
             } catch (JSONException e) {
-                Log.e("EventRepository", "Error parsing blood collected amounts", e);
+                Log.e("EventRepository", "Error parsing blood collected JSON", e);
             }
-
-            // Log total amounts for verification
-            double totalTarget = bloodTypeTargets.values().stream().mapToDouble(Double::doubleValue).sum();
-            double totalCollected = event.getTotalCollectedAmount();
-            Log.d("EventRepository", String.format("Event %s totals - Target: %.2f, Collected: %.2f",
-                    eventId, totalTarget, totalCollected));
 
             return event;
 
@@ -381,18 +373,21 @@ public class EventRepository implements IEventRepository {
             values.put("created_at", System.currentTimeMillis());
             values.put("updated_at", System.currentTimeMillis());
 
-            // Convert blood type targets to JSON
+            // Convert blood type targets to JSON with numeric values
             JSONObject bloodTypeTargets = new JSONObject();
             for (Map.Entry<String, BloodTypeRequirement> entry : event.getBloodRequirements().entrySet()) {
-                bloodTypeTargets.put(entry.getKey(), entry.getValue());
+                BloodTypeRequirement req = entry.getValue();
+                // Store the target amount as a number
+                bloodTypeTargets.put(entry.getKey(), req.getTargetAmount());
             }
             values.put("blood_type_targets", bloodTypeTargets.toString());
 
-            // Convert blood collected to JSON
+            // Convert blood collected amounts to JSON with numeric values
             JSONObject bloodCollected = new JSONObject();
             for (Map.Entry<String, BloodTypeRequirement> entry : event.getBloodRequirements().entrySet()) {
-                BloodTypeRequirement collected = event.getBloodRequirements().get(entry.getKey());
-                bloodCollected.put(entry.getKey(), collected);
+                BloodTypeRequirement req = entry.getValue();
+                // Store the collected amount as a number
+                bloodCollected.put(entry.getKey(), req.getCollectedAmount());
             }
             values.put("blood_collected", bloodCollected.toString());
 

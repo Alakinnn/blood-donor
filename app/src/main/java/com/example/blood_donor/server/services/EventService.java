@@ -118,34 +118,75 @@ public class EventService implements IEventService {
     }
 
     public void cacheEventDetails(EventSummaryDTO summary) {
-        // Convert summary to full event details
-        EventDetailDTO details = new EventDetailDTO(
-                summary.getEventId(),
-                summary.getTitle(),
-                null, // Description will be loaded from DB
-                summary.getStartTime(),
-                summary.getEndTime(),
-                null, // Status will be determined from times
-                null, // Host info will be loaded
-                null, // Host name will be loaded
-                null, // Host phone will be loaded
-                summary.getAddress(),
-                summary.getLatitude(),
-                summary.getLongitude(),
-                null, // Location description will be loaded
-                summary.getRequiredBloodTypes(),
-                summary.getBloodGoal(),
-                summary.getCurrentBloodCollected(),
-                0, // Donor count will be loaded
-                0, // Volunteer count will be loaded
-                summary.getBloodProgress(),
-                summary.getDonationStartTime(),
-                summary.getDonationEndTime()
-        );
+        try {
+            // Load complete event from database
+            Optional<DonationEvent> eventOpt = eventRepository.findById(summary.getEventId());
+            if (!eventOpt.isPresent()) {
+                Log.w("EventService", "Event not found in database: " + summary.getEventId());
+                return;
+            }
 
-        cacheService.cacheEventDetails(summary.getEventId(), details);
+            DonationEvent event = eventOpt.get();
+
+            // Load host information
+            Optional<User> hostOpt = userRepository.findById(event.getHostId());
+            if (!hostOpt.isPresent()) {
+                Log.w("EventService", "Host not found for event: " + summary.getEventId());
+                return;
+            }
+
+            User host = hostOpt.get();
+
+            // Get registration counts
+            int donorCount = registrationRepository.getRegistrationCount(
+                    summary.getEventId(),
+                    RegistrationType.DONOR
+            );
+            int volunteerCount = registrationRepository.getRegistrationCount(
+                    summary.getEventId(),
+                    RegistrationType.VOLUNTEER
+            );
+
+            // Create complete event details
+            EventDetailDTO details = new EventDetailDTO(
+                    event.getEventId(),
+                    event.getTitle(),
+                    event.getDescription(),  // Now populated
+                    event.getStartTime(),
+                    event.getEndTime(),
+                    event.getStatus(),
+                    host.getUserId(),        // Now populated
+                    host.getFullName(),      // Now populated
+                    host.getPhoneNumber(),   // Now populated
+                    event.getLocation().getAddress(),
+                    event.getLocation().getLatitude(),
+                    event.getLocation().getLongitude(),
+                    event.getLocation().getDescription(),
+                    new ArrayList<>(event.getBloodRequirements().keySet()),
+                    event.getTotalTargetAmount(),
+                    event.getTotalCollectedAmount(),
+                    donorCount,              // Now populated
+                    volunteerCount,          // Now populated
+                    buildBloodProgress(event.getBloodRequirements()),
+                    event.getDonationStartTime(),
+                    event.getDonationEndTime()
+            );
+
+            cacheService.cacheEventDetails(summary.getEventId(), details);
+
+        } catch (AppException e) {
+            Log.e("EventService", "Error caching event details", e);
+        }
     }
 
+    private List<BloodTypeProgress> buildBloodProgress(Map<String, BloodTypeRequirement> requirements) {
+        return requirements.values().stream()
+                .map(req -> new BloodTypeProgress(
+                        req.getTargetAmount(),
+                        req.getCollectedAmount()
+                ))
+                .collect(Collectors.toList());
+    }
     @Override
     public ApiResponse<List<EventSummaryDTO>> getEventSummaries(EventQueryDTO query) {
         try {
