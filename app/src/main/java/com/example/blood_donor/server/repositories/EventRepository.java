@@ -64,23 +64,22 @@ public class EventRepository implements IEventRepository {
             conditions.add("e.status != ?");
             args.add("CANCELLED");
 
-            // Search term condition
+            // Title-only search term condition (changed from previous implementation)
             if (query.getSearchTerm() != null && !query.getSearchTerm().trim().isEmpty()) {
                 String searchTerm = "%" + query.getSearchTerm().trim() + "%";
-                conditions.add("(e.title LIKE ? OR e.description LIKE ? OR l.address LIKE ?)");
-                args.add(searchTerm);
-                args.add(searchTerm);
+                conditions.add("e.title LIKE ?");
                 args.add(searchTerm);
             }
 
-            // Blood type filter
+            // Blood type filter - Modified to require ALL selected blood types
             if (query.getBloodTypes() != null && !query.getBloodTypes().isEmpty()) {
                 List<String> bloodTypeConditions = new ArrayList<>();
                 for (String bloodType : query.getBloodTypes()) {
                     bloodTypeConditions.add("e.blood_type_targets LIKE ?");
                     args.add("%" + bloodType + "%");
                 }
-                conditions.add("(" + String.join(" OR ", bloodTypeConditions) + ")");
+                // Changed from OR to AND to require all blood types
+                conditions.add("(" + String.join(" AND ", bloodTypeConditions) + ")");
             }
 
             // Combine all conditions
