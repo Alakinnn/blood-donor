@@ -1,5 +1,6 @@
 package com.example.blood_donor.ui.fragments;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -33,9 +34,12 @@ import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputLayout;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 public class HomeFragment extends Fragment {
     private ViewPager2 funFactsCarousel;
@@ -51,6 +55,10 @@ public class HomeFragment extends Fragment {
     private List<String> selectedBloodTypes = new ArrayList<>();
     private Long selectedStartDate;
     private Long selectedEndDate;
+    private MaterialButton startDateButton;
+    private MaterialButton endDateButton;
+    private MaterialButton clearDatesButton;
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
 
 
     private final List<String> funFacts = Arrays.asList(
@@ -85,11 +93,68 @@ public class HomeFragment extends Fragment {
         searchLayout = view.findViewById(R.id.searchLayout);
         filterContainer = view.findViewById(R.id.filterContainer);
         bloodTypeFilter = view.findViewById(R.id.bloodTypeFilter);
+        startDateButton = view.findViewById(R.id.startDateButton);
+        endDateButton = view.findViewById(R.id.endDateButton);
+        clearDatesButton = view.findViewById(R.id.clearDatesButton);
+
+        startDateButton.setOnClickListener(v -> showDatePicker(true));
+        endDateButton.setOnClickListener(v -> showDatePicker(false));
+        clearDatesButton.setOnClickListener(v -> clearDates());
 
         searchLayout.setEndIconOnClickListener(v -> {
             boolean isVisible = filterContainer.getVisibility() == View.VISIBLE;
             filterContainer.setVisibility(isVisible ? View.GONE : View.VISIBLE);
+            view.findViewById(R.id.dateFilterContainer).setVisibility(isVisible ? View.GONE : View.VISIBLE);
         });
+    }
+
+    private void showDatePicker(boolean isStartDate) {
+        Calendar calendar = Calendar.getInstance();
+        if (isStartDate && selectedStartDate != null) {
+            calendar.setTimeInMillis(selectedStartDate);
+        } else if (!isStartDate && selectedEndDate != null) {
+            calendar.setTimeInMillis(selectedEndDate);
+        }
+
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    Calendar selectedCal = Calendar.getInstance();
+                    selectedCal.set(year, month, dayOfMonth);
+                    selectedCal.set(Calendar.HOUR_OF_DAY, 0);
+                    selectedCal.set(Calendar.MINUTE, 0);
+                    selectedCal.set(Calendar.SECOND, 0);
+
+                    if (isStartDate) {
+                        selectedStartDate = selectedCal.getTimeInMillis();
+                        startDateButton.setText(dateFormat.format(selectedCal.getTime()));
+                    } else {
+                        selectedEndDate = selectedCal.getTimeInMillis();
+                        endDateButton.setText(dateFormat.format(selectedCal.getTime()));
+                    }
+                    refreshEvents();
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+
+        // Set min/max dates if needed
+        if (!isStartDate && selectedStartDate != null) {
+            datePickerDialog.getDatePicker().setMinDate(selectedStartDate);
+        } else if (isStartDate && selectedEndDate != null) {
+            datePickerDialog.getDatePicker().setMaxDate(selectedEndDate);
+        }
+
+        datePickerDialog.show();
+    }
+
+    private void clearDates() {
+        selectedStartDate = null;
+        selectedEndDate = null;
+        startDateButton.setText("Start Date");
+        endDateButton.setText("End Date");
+        refreshEvents();
     }
 
     private void setupFunFactsCarousel() {
