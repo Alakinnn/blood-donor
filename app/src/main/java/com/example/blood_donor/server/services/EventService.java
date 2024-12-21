@@ -7,6 +7,7 @@ import com.example.blood_donor.server.dto.events.BloodTypeProgress;
 import com.example.blood_donor.server.dto.events.CreateEventDTO;
 import com.example.blood_donor.server.dto.events.EventDetailDTO;
 import com.example.blood_donor.server.dto.events.EventMarkerDTO;
+import com.example.blood_donor.server.dto.events.UpdateEventDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.errors.AppException;
@@ -420,6 +421,19 @@ public class EventService implements IEventService {
             summary.setDistance(event.getDistance());
         }
         return summary;
+    }
+
+    public ApiResponse<DonationEvent> updateEvent(String eventId, UpdateEventDTO updateDto) {
+        try {
+            Optional<DonationEvent> updatedEvent = eventRepository.updateEvent(eventId, updateDto);
+            if (updatedEvent.isPresent()) {
+                return ApiResponse.success(updatedEvent.get());
+            } else {
+                return ApiResponse.error(ErrorCode.INVALID_INPUT, "Failed to update event");
+            }
+        } catch (AppException e) {
+            return ApiResponse.error(e.getErrorCode(), e.getMessage());
+        }
     }
 
     private EventSummaryDTO convertToEventSummary(DonationEvent event) {

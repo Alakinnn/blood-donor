@@ -1,10 +1,12 @@
 package com.example.blood_donor.ui.adapters;
 
 
+import android.content.Intent;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -12,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
+import com.example.blood_donor.ui.EditEventActivity;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 
@@ -37,6 +40,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     public interface OnEventActionListener {
         void onStatisticsClick(EventSummaryDTO event);
         void onReportClick(EventSummaryDTO event);
+        void onEditClick(EventSummaryDTO event);
     }
 
     public void setShowManagerActions(boolean show) {
@@ -95,10 +99,12 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
         private final TextView progressText;
         private final TextView bloodTypesView;
         private final MaterialButton detailsButton;
+        private final ImageButton editButton;
 
         EventViewHolder(@NonNull View itemView) {
             super(itemView);
             titleView = itemView.findViewById(R.id.eventTitle);
+            editButton = itemView.findViewById(R.id.editButton);
             dateTimeView = itemView.findViewById(R.id.eventDateTime);
             progressBar = itemView.findViewById(R.id.bloodProgress);
             progressText = itemView.findViewById(R.id.progressText);
@@ -119,24 +125,29 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             // Set up progress
             double progress = (event.getBloodGoal() > 0) ?
                     (event.getCurrentBloodCollected() / event.getBloodGoal()) * 100 : 0;
-
-            // Ensure progress is between 0 and 100
             progress = Math.min(100, Math.max(0, progress));
-
-            // Log the values for debugging
-            Log.d("EventAdapter", String.format("Event: %s, Goal: %.2f, Collected: %.2f, Progress: %.2f%%",
-                    event.getEventId(),
-                    event.getBloodGoal(),
-                    event.getCurrentBloodCollected(),
-                    progress));
-
             progressBar.setProgress((int) progress);
             progressText.setText(String.format(Locale.getDefault(),
                     "%.1f%% of %.1fL goal", progress, event.getBloodGoal()));
+            if (showManagerActions) {
+                editButton.setVisibility(View.VISIBLE);
+                editButton.setOnClickListener(v -> {
+                    if (actionListener != null) {
+                        actionListener.onEditClick(event);
+                    } else {
+                        // Fallback direct navigation if no listener
+                        Intent intent = new Intent(v.getContext(), EditEventActivity.class);
+                        intent.putExtra("eventId", event.getEventId());
+                        v.getContext().startActivity(intent);
+                    }
+                });
+            } else {
+                editButton.setVisibility(View.GONE);
+            }
 
             detailsButton.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onEventClick(events.get(getAdapterPosition()));
+                    listener.onEventClick(event);
                 }
             });
 
@@ -155,7 +166,6 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             }
 
             managerActions.setVisibility(showManagerActions ? View.VISIBLE : View.GONE);
-
             if (showManagerActions && actionListener != null) {
                 statisticsButton.setOnClickListener(v ->
                         actionListener.onStatisticsClick(event));

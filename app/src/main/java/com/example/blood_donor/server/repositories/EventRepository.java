@@ -1,6 +1,7 @@
 package com.example.blood_donor.server.repositories;
 
 import static com.example.blood_donor.server.database.DatabaseHelper.TABLE_EVENTS;
+import static com.example.blood_donor.server.database.DatabaseHelper.TABLE_LOCATIONS;
 
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -10,6 +11,7 @@ import android.util.Log;
 
 import com.example.blood_donor.server.database.DatabaseHelper;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
+import com.example.blood_donor.server.dto.events.UpdateEventDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.errors.ErrorCode;
@@ -525,7 +527,7 @@ public class EventRepository implements IEventRepository {
                             "l.address, l.latitude, l.longitude, " +
                             "r.type AS registration_type " +
                             "FROM " + DatabaseHelper.TABLE_EVENTS + " e " +
-                            "JOIN " + DatabaseHelper.TABLE_LOCATIONS + " l ON e.location_id = l.id " +
+                            "JOIN " + TABLE_LOCATIONS + " l ON e.location_id = l.id " +
                             "JOIN " + DatabaseHelper.TABLE_REGISTRATIONS + " r ON e.id = r.event_id " +
                             "WHERE r.user_id = ? AND r.status = 'ACTIVE' " +
                             "ORDER BY e.start_time DESC";
@@ -559,7 +561,7 @@ public class EventRepository implements IEventRepository {
                             "(SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_REGISTRATIONS +
                             " r WHERE r.event_id = e.id AND r.type = 'VOLUNTEER' AND r.status = 'ACTIVE') AS volunteer_count " +
                             "FROM " + DatabaseHelper.TABLE_EVENTS + " e " +
-                            "JOIN " + DatabaseHelper.TABLE_LOCATIONS + " l ON e.location_id = l.id " +
+                            "JOIN " + TABLE_LOCATIONS + " l ON e.location_id = l.id " +
                             "WHERE e.host_id = ? " +
                             "ORDER BY e.start_time DESC";
 
@@ -628,5 +630,66 @@ public class EventRepository implements IEventRepository {
             summaries.add(summary);
         }
         return summaries;
+    }
+
+    @Override
+    public Optional<DonationEvent> updateEvent(String eventId, UpdateEventDTO updateDto) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getWritableDatabase();
+            db.beginTransaction();
+
+            // First verify the event exists and get its current state
+            String selectQuery = "SELECT e.*, l.id AS location_id, l.address, l.latitude, l.longitude " +
+                    "FROM " + TABLE_EVENTS + " e " +
+                    "JOIN " + TABLE_LOCATIONS + " l ON e.location_id = l.id " +
+                    "WHERE e.id = ?";
+
+            cursor = db.rawQuery(selectQuery, new String[]{eventId});
+
+            if (!cursor.moveToFirst()) {
+                throw new AppException(ErrorCode.INVALID_INPUT, "Event not found");
+            }
+
+            // Update the location first if address changed
+            String locationId = cursor.getString(cursor.getColumnIndexOrThrow("location_id"));
+            if (!cursor.getString(cursor.getColumnIndexOrThrow("address")).equals(updateDto.getAddress())) {
+                ContentValues locationValues = new ContentValues();
+                locationValues.put("address", updateDto.getAddress());
+                locationValues.put("latitude", updateDto.getLatitude());
+                locationValues.put("longitude", updateDto.getLongitude());
+                locationValues.put("updated_at", System.currentTimeMillis());
+
+                db.update(TABLE_LOCATIONS, locationValues, "id = ?", new String[]{locationId});
+            }
+
+            // Update event details
+            ContentValues eventValues = new ContentValues();
+            eventValues.put("title", updateDto.getTitle());
+            eventValues.put("description", updateDto.getDescription());
+            eventValues.put("start_time", updateDto.getStartTime());
+            eventValues.put("end_time", updateDto.getEndTime());
+            eventValues.put("blood_type_targets", new JSONObject(updateDto.getBloodTypeTargets()).toString());
+            eventValues.put("donation_start_time", updateDto.getDonationStartTime().toString());
+            eventValues.put("donation_end_time", updateDto.getDonationEndTime().toString());
+            eventValues.put("updated_at", System.currentTimeMillis());
+
+            int rowsUpdated = db.update(TABLE_EVENTS, eventValues, "id = ?", new String[]{eventId});
+            if (rowsUpdated == 0) {
+                throw new AppException(ErrorCode.DATABASE_ERROR, "Failed to update event");
+            }
+
+            db.setTransactionSuccessful();
+
+            // Return updated event
+            return findById(eventId);
+
+        } finally {
+            if (cursor != null) cursor.close();
+            if (db != null) {
+                db.endTransaction();
+            }
+        }
     }
 }

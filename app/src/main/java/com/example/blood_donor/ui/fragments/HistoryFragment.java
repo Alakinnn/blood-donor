@@ -23,6 +23,7 @@ import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.server.utils.FileUtils;
+import com.example.blood_donor.ui.EditEventActivity;
 import com.example.blood_donor.ui.EventDetailsActivity;
 import com.example.blood_donor.ui.EventStatisticsActivity;
 import com.example.blood_donor.ui.adapters.EventAdapter;
@@ -290,6 +291,13 @@ class HistoryPagerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                 @Override
                 public void onReportClick(EventSummaryDTO event) {
                     callback.showReportFormatDialog(event.getEventId());
+                }
+
+                @Override
+                public void onEditClick(EventSummaryDTO event) {
+                    Intent intent = new Intent(fragment.requireContext(), EditEventActivity.class);
+                    intent.putExtra("eventId", event.getEventId());
+                    fragment.startActivity(intent);
                 }
             });
 

@@ -70,6 +70,22 @@ public class EventDetailDTO {
         this.donationEndTime = donationEndTime;
     }
 
+    public List<BloodTypeProgress> getBloodProgress() {
+        return bloodProgress;
+    }
+
+    public void setBloodProgress(List<BloodTypeProgress> bloodProgress) {
+        this.bloodProgress = bloodProgress;
+    }
+
+    public Map<String, Integer> getDonorsByBloodType() {
+        return donorsByBloodType;
+    }
+
+    public void setDonorsByBloodType(Map<String, Integer> donorsByBloodType) {
+        this.donorsByBloodType = donorsByBloodType;
+    }
+
     public String getEventId() {
         return eventId;
     }

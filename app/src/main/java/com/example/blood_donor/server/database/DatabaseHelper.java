@@ -54,6 +54,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     KEY_UPDATED_AT + " INTEGER NOT NULL" +
                     ")";
 
+    private static final String CREATE_TABLE_NOTIFICATIONS =
+            "CREATE TABLE " + TABLE_NOTIFICATIONS + "(" +
+                    "notification_id TEXT PRIMARY KEY," +
+                    "user_id TEXT NOT NULL," +
+                    "event_id TEXT," +  // Optional, for event-related notifications
+                    "title TEXT NOT NULL," +
+                    "message TEXT NOT NULL," +
+                    "type TEXT NOT NULL," +  // Type of notification (EVENT_UPDATE, BLOOD_TYPE_MATCH, etc.)
+                    "is_read INTEGER DEFAULT 0," +  // 0 for unread, 1 for read
+                    "created_at INTEGER NOT NULL," +
+                    "FOREIGN KEY (user_id) REFERENCES " + TABLE_USERS + "(id) ON DELETE CASCADE," +
+                    "FOREIGN KEY (event_id) REFERENCES " + TABLE_EVENTS + "(id) ON DELETE CASCADE" +
+                    ")";
+
     private static final String CREATE_TABLE_EVENTS =
             "CREATE TABLE " + TABLE_EVENTS + "(" +
                     "id TEXT PRIMARY KEY," +
@@ -136,6 +150,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.execSQL(
                     CREATE_TABLE_SESSIONS
             );
+            db.execSQL(CREATE_TABLE_NOTIFICATIONS);
             db.execSQL(CREATE_TABLE_LOCATIONS);
             db.execSQL(CREATE_TABLE_EVENTS);
             // Add in onCreate():
@@ -161,6 +176,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.execSQL("CREATE INDEX idx_locations_coords ON locations(latitude, longitude)");
             db.execSQL(CREATE_LOCATION_INDEXES);
             db.execSQL(CREATE_LOCATION_TRIGGERS);
+
+            db.execSQL("CREATE INDEX idx_notifications_user ON notifications(user_id)");
+            db.execSQL("CREATE INDEX idx_notifications_read ON notifications(is_read)");
         } catch (SQLException e) {
             Log.e("DatabaseHelper", "Error creating database", e);
             throw e;

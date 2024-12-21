@@ -7,85 +7,100 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp">
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <TextView
-            android:id="@+id/eventTitle"
-            style="@style/TextAppearance.BloodDonor.Headline2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="@color/textPrimary"/>
-
-        <TextView
-            android:id="@+id/eventDateTime"
-            style="@style/TextAppearance.BloodDonor.Body1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+        android:layout_height="wrap_content">
+        <ImageButton
+            android:id="@+id/editButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentEnd="true"
             android:layout_marginTop="8dp"
-            android:textColor="@color/textSecondary"/>
-
-        <TextView
-            android:id="@+id/requiredBloodTypes"
-            style="@style/TextAppearance.BloodDonor.Body1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/colorPrimary"/>
-
-        <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:id="@+id/bloodProgress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            app:trackColor="#E0E0E0"
-            app:indicatorColor="@color/colorPrimary"/>
-
-        <TextView
-            android:id="@+id/progressText"
-            style="@style/TextAppearance.BloodDonor.Body2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textAlignment="center"
-            android:textColor="@color/textSecondary"/>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/detailsButton"
-            style="@style/Widget.BloodDonor.Button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginTop="8dp"
-            android:text="See Details"/>
+            android:layout_marginEnd="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_edit"
+            android:visibility="gone" />
 
         <LinearLayout
-            android:id="@+id/managerActions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:visibility="gone">
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/eventTitle"
+                style="@style/TextAppearance.BloodDonor.Headline2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/textPrimary"/>
+
+            <TextView
+                android:id="@+id/eventDateTime"
+                style="@style/TextAppearance.BloodDonor.Body1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/textSecondary"/>
+
+            <TextView
+                android:id="@+id/requiredBloodTypes"
+                style="@style/TextAppearance.BloodDonor.Body1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/colorPrimary"/>
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/bloodProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:trackColor="#E0E0E0"
+                app:indicatorColor="@color/colorPrimary"/>
+
+            <TextView
+                android:id="@+id/progressText"
+                style="@style/TextAppearance.BloodDonor.Body2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textAlignment="center"
+                android:textColor="@color/textSecondary"/>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/statisticsButton"
+                android:id="@+id/detailsButton"
                 style="@style/Widget.BloodDonor.Button"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="Statistics" />
+                android:layout_gravity="end"
+                android:layout_marginTop="8dp"
+                android:text="See Details"/>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/reportButton"
-                style="@style/Widget.BloodDonor.Button"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:id="@+id/managerActions"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="Report" />
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/statisticsButton"
+                    style="@style/Widget.BloodDonor.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="Statistics" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/reportButton"
+                    style="@style/Widget.BloodDonor.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="Report" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </RelativeLayout>
 </com.google.android.material.card.MaterialCardView>

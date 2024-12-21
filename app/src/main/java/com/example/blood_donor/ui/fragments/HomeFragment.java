@@ -4,12 +4,15 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,12 +25,17 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
+import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.models.user.User;
+import com.example.blood_donor.server.notifications.NotificationItem;
 import com.example.blood_donor.ui.EventDetailsActivity;
 import com.example.blood_donor.ui.adapters.EventAdapter;
 import com.example.blood_donor.ui.adapters.FunFactAdapter;
+import com.example.blood_donor.ui.adapters.NotificationAdapter;
 import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.server.services.EventService;
+import com.example.blood_donor.ui.manager.NotificationManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
@@ -40,6 +48,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class HomeFragment extends Fragment {
     private ViewPager2 funFactsCarousel;
@@ -59,6 +68,13 @@ public class HomeFragment extends Fragment {
     private MaterialButton endDateButton;
     private MaterialButton clearDatesButton;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+    private NotificationManager notificationManager;
+    private View notificationDot;
+    private ImageButton notificationBell;
+    private PopupWindow notificationPopup;
+    private NotificationAdapter notificationAdapter;
+    private Handler refreshHandler = new Handler();
+    private static final long REFRESH_INTERVAL = TimeUnit.MINUTES.toMillis(1);
 
 
     private final List<String> funFacts = Arrays.asList(
@@ -76,6 +92,7 @@ public class HomeFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         initializeViews(view);
         setupFunFactsCarousel();
+        setupNotificationSystem();
         setupEventList();
         setupSearch();
         return view;
@@ -96,6 +113,8 @@ public class HomeFragment extends Fragment {
         startDateButton = view.findViewById(R.id.startDateButton);
         endDateButton = view.findViewById(R.id.endDateButton);
         clearDatesButton = view.findViewById(R.id.clearDatesButton);
+        notificationDot = view.findViewById(R.id.notificationDot);
+        notificationBell = view.findViewById(R.id.notificationBell);
 
         startDateButton.setOnClickListener(v -> showDatePicker(true));
         endDateButton.setOnClickListener(v -> showDatePicker(false));
@@ -106,6 +125,133 @@ public class HomeFragment extends Fragment {
             filterContainer.setVisibility(isVisible ? View.GONE : View.VISIBLE);
             view.findViewById(R.id.dateFilterContainer).setVisibility(isVisible ? View.GONE : View.VISIBLE);
         });
+        notificationBell.setOnClickListener(v -> showNotificationPopup(v));
+    }
+
+    private void setupNotificationSystem() {
+        if (getContext() == null) return; // Safety check
+
+        notificationManager = new NotificationManager(
+                requireContext(),
+                ServiceLocator.getDatabaseHelper()
+        );
+
+        // Initial check for notifications
+        checkUnreadNotifications();
+
+        // Start periodic checks
+        startNotificationChecks();
+    }
+
+    private void setupNotificationUI() {
+        ImageButton notificationBell = requireView().findViewById(R.id.notificationBell);
+        View notificationDot = requireView().findViewById(R.id.notificationDot);
+
+        notificationBell.setOnClickListener(v -> showNotificationPopup(v));
+
+        // Initialize adapter
+        notificationAdapter = new NotificationAdapter();
+        notificationAdapter.setOnDeleteClickListener(notificationId -> {
+            notificationManager.deleteNotification(notificationId);
+            checkUnreadNotifications();
+        });
+    }
+
+    private void checkUnreadNotifications() {
+        if (notificationManager == null || !isAdded()) return;
+
+        String userId = AuthManager.getInstance().getUserId();
+        if (userId == null) return;
+
+        // Check for blood type matches
+        try {
+            User currentUser = ServiceLocator.getUserRepository().findById(userId).orElse(null);
+            if (currentUser != null && currentUser.getBloodType() != null) {
+                notificationManager.checkBloodTypeMatchingEvents(userId, currentUser.getBloodType());
+            }
+
+            // Check unread status
+            List<NotificationItem> unread = notificationManager.getUnreadNotifications(userId);
+            if (notificationDot != null) {
+                notificationDot.setVisibility(unread.isEmpty() ? View.GONE : View.VISIBLE);
+            }
+        } catch (AppException e) {
+            Log.e("HomeFragment", "Error checking notifications", e);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (notificationManager != null) {
+            checkUnreadNotifications();
+        }
+    }
+
+    private void startNotificationChecks() {
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isAdded() && notificationManager != null) {
+                    checkUnreadNotifications();
+                    handler.postDelayed(this, TimeUnit.MINUTES.toMillis(1));
+                }
+            }
+        }, TimeUnit.MINUTES.toMillis(1));
+    }
+
+    private void showNotificationPopup(View anchor) {
+        if (notificationManager == null || !isAdded()) return;
+
+        if (notificationPopup != null && notificationPopup.isShowing()) {
+            notificationPopup.dismiss();
+            return;
+        }
+
+        View popupView = getLayoutInflater().inflate(R.layout.popup_notifications, null);
+        RecyclerView recyclerView = popupView.findViewById(R.id.notificationsList);
+        MaterialButton clearAllButton = popupView.findViewById(R.id.clearAllButton);
+
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        NotificationAdapter adapter = new NotificationAdapter();
+        recyclerView.setAdapter(adapter);
+
+        String userId = AuthManager.getInstance().getUserId();
+        List<NotificationItem> notifications = notificationManager.getUnreadNotifications(userId);
+        adapter.setNotifications(notifications);
+
+        adapter.setOnDeleteClickListener(notificationId -> {
+            notificationManager.deleteNotification(notificationId);
+            checkUnreadNotifications();
+        });
+
+        notificationPopup = new PopupWindow(
+                popupView,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                true
+        );
+
+        clearAllButton.setOnClickListener(v -> {
+            notificationManager.deleteAllNotifications(userId);
+            notificationPopup.dismiss();
+            checkUnreadNotifications();
+        });
+
+        // Mark notifications as read
+        notificationManager.markAllAsRead(userId);
+        notificationDot.setVisibility(View.GONE);
+
+        notificationPopup.showAsDropDown(anchor);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (notificationPopup != null && notificationPopup.isShowing()) {
+            notificationPopup.dismiss();
+        }
     }
 
     private void showDatePicker(boolean isStartDate) {

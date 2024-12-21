@@ -10,4 +10,36 @@ public class BloodTypeProgress {
         this.targetAmount = targetAmount;
         this.collectedAmount = collectedAmount;
     }
+
+    public String getBloodType() {
+        return bloodType;
+    }
+
+    public void setBloodType(String bloodType) {
+        this.bloodType = bloodType;
+    }
+
+    public double getTargetAmount() {
+        return targetAmount;
+    }
+
+    public void setTargetAmount(double targetAmount) {
+        this.targetAmount = targetAmount;
+    }
+
+    public double getCollectedAmount() {
+        return collectedAmount;
+    }
+
+    public void setCollectedAmount(double collectedAmount) {
+        this.collectedAmount = collectedAmount;
+    }
+
+    public double getProgressPercentage() {
+        return progressPercentage;
+    }
+
+    public void setProgressPercentage(double progressPercentage) {
+        this.progressPercentage = progressPercentage;
+    }
 }
