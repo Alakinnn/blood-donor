@@ -18,6 +18,8 @@ public class NotificationManager {
     private static final String NOTIFICATION_TABLE = "notifications";
     private final DatabaseHelper dbHelper;
     private final Context context;
+    private NotificationCallback notificationCallback;
+
 
     private static final long ONE_HOUR = TimeUnit.HOURS.toMillis(1);
     private static final long TWENTY_FOUR_HOURS = TimeUnit.HOURS.toMillis(24);
@@ -61,6 +63,26 @@ public class NotificationManager {
         return notifications;
     }
 
+    public List<NotificationItem> getAllNotifications(String userId) {
+        List<NotificationItem> notifications = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        Cursor cursor = db.query(
+                NOTIFICATION_TABLE,
+                null,
+                "user_id = ?",
+                new String[]{userId},
+                null, null, "created_at DESC"
+        );
+
+        while (cursor.moveToNext()) {
+            notifications.add(cursorToNotification(cursor));
+        }
+        cursor.close();
+
+        return notifications;
+    }
+
     public void markAsRead(String notificationId) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -79,7 +101,7 @@ public class NotificationManager {
 
         db.update(NOTIFICATION_TABLE,
                 values,
-                "user_id = ?",
+                "user_id = ? AND is_read = 0",
                 new String[]{userId});
     }
 
@@ -95,6 +117,28 @@ public class NotificationManager {
         db.delete(NOTIFICATION_TABLE,
                 "user_id = ?",
                 new String[]{userId});
+
+        // Ensure notification dot is updated
+        notifyNotificationCountChanged(userId);
+    }
+
+    private void notifyNotificationCountChanged(String userId) {
+        // This will be called after any operation that changes the notification count
+        List<NotificationItem> unread = getUnreadNotifications(userId);
+        boolean hasUnread = !unread.isEmpty();
+
+        // You can implement a callback or event system here to update the UI
+        if (notificationCallback != null) {
+            notificationCallback.onNotificationCountChanged(hasUnread);
+        }
+    }
+
+    public interface NotificationCallback {
+        void onNotificationCountChanged(boolean hasUnread);
+    }
+
+    public void setNotificationCallback(NotificationCallback callback) {
+        this.notificationCallback = callback;
     }
 
     private NotificationItem cursorToNotification(Cursor cursor) {

@@ -11,6 +11,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -27,7 +28,15 @@ import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.ui.manager.NotificationManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -42,7 +51,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class EditEventActivity extends AppCompatActivity {
+public class EditEventActivity extends AppCompatActivity implements OnMapReadyCallback {
     private EditText titleInput;
     private EditText descriptionInput;
     private MaterialButton startDateBtn;
@@ -60,6 +69,12 @@ public class EditEventActivity extends AppCompatActivity {
     private LinearLayout bloodTypeContainer;
     private final Map<String, EditText> bloodTypeInputs = new HashMap<>();
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+    private GoogleMap map;
+    private Marker currentLocationMarker;
+    private double latitude;
+    private double longitude;
+    private String address;
+    private TextView locationText;
 
     public EditEventActivity() {
         this.eventService = ServiceLocator.getEventService();
@@ -77,9 +92,127 @@ public class EditEventActivity extends AppCompatActivity {
             return;
         }
 
+        // Initialize back button
+        findViewById(R.id.backButton).setOnClickListener(v -> onBackPressed());
+
         initializeViews();
         setupDateTimeListeners();
+        setupMap();
         loadEventDetails();
+    }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        map = googleMap;
+        map.getUiSettings().setZoomControlsEnabled(true);
+
+        // Set initial location from event details
+        if (eventDetails != null) {
+            latitude = eventDetails.getLatitude();
+            longitude = eventDetails.getLongitude();
+            address = eventDetails.getAddress();
+
+            LatLng location = new LatLng(latitude, longitude);
+            if (currentLocationMarker != null) {
+                currentLocationMarker.remove();
+            }
+            currentLocationMarker = map.addMarker(new MarkerOptions()
+                    .position(location)
+                    .title(eventDetails.getTitle()));
+
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 15f));
+            locationText.setText(address);
+        }
+
+        // Setup map click listener
+        map.setOnMapClickListener(latLng -> {
+            updateLocation(latLng);
+        });
+    }
+
+    private void updateLocation(LatLng latLng) {
+        latitude = latLng.latitude;
+        longitude = latLng.longitude;
+
+        // Update marker
+        if (currentLocationMarker != null) {
+            currentLocationMarker.remove();
+        }
+        currentLocationMarker = map.addMarker(new MarkerOptions()
+                .position(latLng)
+                .title("Event Location"));
+
+        // Geocode the location
+        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+        try {
+            List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+            if (!addresses.isEmpty()) {
+                Address addr = addresses.get(0);
+                address = addr.getAddressLine(0);
+                locationText.setText(address);
+            }
+        } catch (IOException e) {
+            Log.e("EditEventActivity", "Error geocoding location", e);
+            Toast.makeText(this, "Error getting address", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        // Show confirmation dialog if there are unsaved changes
+        super.onBackPressed();
+        if (hasUnsavedChanges()) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Unsaved Changes")
+                    .setMessage("You have unsaved changes. Are you sure you want to leave?")
+                    .setPositiveButton("Leave", (dialog, which) -> finish())
+                    .setNegativeButton("Stay", null)
+                    .show();
+        } else {
+            finish();
+        }
+    }
+
+    private void setupMap() {
+        locationText = findViewById(R.id.locationText);
+        // Get the SupportMapFragment and request notification when the map is ready
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.mapFragment);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
+    }
+
+
+    private boolean hasUnsavedChanges() {
+        // Compare current values with original values
+        boolean titleChanged = !titleInput.getText().toString().equals(eventDetails.getTitle());
+        boolean descriptionChanged = !descriptionInput.getText().toString().equals(eventDetails.getDescription());
+        boolean addressChanged = !locationInput.getText().toString().equals(eventDetails.getAddress());
+
+        // Compare dates and times
+        boolean dateTimeChanged = startDate.getTimeInMillis() != eventDetails.getStartTime() ||
+                endDate.getTimeInMillis() != eventDetails.getEndTime();
+
+        // Compare blood type targets
+        boolean bloodTypeTargetsChanged = false;
+        for (Map.Entry<String, EditText> entry : bloodTypeInputs.entrySet()) {
+            String currentValue = entry.getValue().getText().toString();
+            double originalValue = 0.0;
+            for (BloodTypeProgress progress : eventDetails.getBloodProgress()) {
+                if (progress.getBloodType().equals(entry.getKey())) {
+                    originalValue = progress.getTargetAmount();
+                    break;
+                }
+            }
+            if (!currentValue.isEmpty() && Double.parseDouble(currentValue) != originalValue) {
+                bloodTypeTargetsChanged = true;
+                break;
+            }
+        }
+
+        return titleChanged || descriptionChanged || addressChanged ||
+                dateTimeChanged || bloodTypeTargetsChanged;
     }
 
     private void initializeViews() {

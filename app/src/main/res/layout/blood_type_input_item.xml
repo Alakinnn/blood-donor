@@ -2,31 +2,28 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="8dp">
+    android:orientation="vertical"
+    android:layout_marginBottom="8dp">
 
-    <com.google.android.material.textview.MaterialTextView
+    <TextView
         android:id="@+id/bloodTypeLabel"
-        style="@style/TextAppearance.BloodDonor.Body1"
-        android:layout_width="48dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
-        android:layout_marginEnd="16dp"
-        android:textStyle="bold"
-        android:textColor="@color/textPrimary"/>
+        android:textAppearance="?attr/textAppearanceBody1"
+        android:textColor="@color/textPrimary"
+        android:layout_marginBottom="4dp"/>
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/amountInputLayout"
-        style="@style/Widget.BloodDonor.TextInputLayout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/amountInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Target amount (L)"
-            style="@style/TextAppearance.BloodDonor.Body1"
-            android:inputType="numberDecimal" />
+            android:inputType="numberDecimal"
+            android:hint="Target amount (L)"/>
     </com.google.android.material.textfield.TextInputLayout>
 </LinearLayout>

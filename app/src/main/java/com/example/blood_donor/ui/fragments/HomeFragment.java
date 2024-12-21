@@ -2,12 +2,14 @@ package com.example.blood_donor.ui.fragments;
 
 import android.app.DatePickerDialog;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -129,12 +131,18 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupNotificationSystem() {
-        if (getContext() == null) return; // Safety check
+        if (getContext() == null) return;
 
         notificationManager = new NotificationManager(
                 requireContext(),
                 ServiceLocator.getDatabaseHelper()
         );
+
+        notificationManager.setNotificationCallback(hasUnread -> {
+            if (notificationDot != null) {
+                notificationDot.setVisibility(hasUnread ? View.VISIBLE : View.GONE);
+            }
+        });
 
         // Initial check for notifications
         checkUnreadNotifications();
@@ -218,12 +226,13 @@ public class HomeFragment extends Fragment {
         recyclerView.setAdapter(adapter);
 
         String userId = AuthManager.getInstance().getUserId();
-        List<NotificationItem> notifications = notificationManager.getUnreadNotifications(userId);
+        List<NotificationItem> notifications = notificationManager.getAllNotifications(userId);
         adapter.setNotifications(notifications);
 
         adapter.setOnDeleteClickListener(notificationId -> {
             notificationManager.deleteNotification(notificationId);
-            checkUnreadNotifications();
+            // Refresh the list after deletion
+            adapter.setNotifications(notificationManager.getAllNotifications(userId));
         });
 
         notificationPopup = new PopupWindow(
@@ -236,14 +245,30 @@ public class HomeFragment extends Fragment {
         clearAllButton.setOnClickListener(v -> {
             notificationManager.deleteAllNotifications(userId);
             notificationPopup.dismiss();
-            checkUnreadNotifications();
         });
 
         // Mark notifications as read
         notificationManager.markAllAsRead(userId);
-        notificationDot.setVisibility(View.GONE);
 
+        // Apply background dim effect
+        View container = new View(requireContext());
+        container.setBackgroundColor(Color.parseColor("#80000000")); // Semi-transparent black
+        container.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Show popup with background dim
+        PopupWindow dimPopup = new PopupWindow(container,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                false);
+        dimPopup.showAtLocation(getView(), Gravity.NO_GRAVITY, 0, 0);
+
+        notificationPopup.setOnDismissListener(() -> dimPopup.dismiss());
         notificationPopup.showAsDropDown(anchor);
+
+        // Set elevation to show above dim background
+        popupView.setElevation(16f);
     }
 
     @Override
