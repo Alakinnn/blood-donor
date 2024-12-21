@@ -60,5 +60,14 @@ dependencies {
     implementation ("com.google.android.gms:play-services-location:21.1.0")
     implementation ("com.google.maps.android:android-maps-utils:3.8.0")
     implementation ("com.google.android.libraries.places:places:3.3.0")
+    implementation ("net.sourceforge.jexcelapi:jxl:2.6.12")
     implementation (libs.mpandroidchart)
+    implementation("org.apache.poi:poi:5.2.3") {
+        exclude(group = "javax.xml.stream", module = "stax-api")
+    }
+    implementation("org.apache.poi:poi-ooxml:5.2.3") {
+        exclude(group = "javax.xml.stream", module = "stax-api")
+        exclude(group = "org.apache.xmlgraphics")
+    }
+
 }

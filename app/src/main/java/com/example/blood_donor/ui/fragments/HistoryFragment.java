@@ -1,12 +1,13 @@
 package com.example.blood_donor.ui.fragments;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -15,10 +16,13 @@ import androidx.viewpager2.widget.ViewPager2;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.Manifest;
+
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.models.user.UserType;
+import com.example.blood_donor.server.utils.FileUtils;
 import com.example.blood_donor.ui.EventDetailsActivity;
 import com.example.blood_donor.ui.EventStatisticsActivity;
 import com.example.blood_donor.ui.adapters.EventAdapter;
@@ -36,6 +40,10 @@ public class HistoryFragment extends Fragment {
     private ViewPager2 viewPager;
     private TabLayout tabLayout;
     private boolean isManager;
+    private static final int STORAGE_PERMISSION_CODE = 1001;
+    private String pendingEventId;
+    private String pendingFormat;
+
 
     public interface EventActionCallback {
         void showReportFormatDialog(String eventId);
@@ -63,7 +71,7 @@ public class HistoryFragment extends Fragment {
                 .setTitle("Select Report Format")
                 .setItems(formats, (dialog, which) -> {
                     String format = formats[which];
-                    generateReport(eventId, format);
+                    checkStoragePermissionAndGenerateReport(eventId, format);
                 })
                 .show();
     }
@@ -74,14 +82,100 @@ public class HistoryFragment extends Fragment {
             byte[] report = ServiceLocator.getAnalyticsService()
                     .generateEventReport(eventId, reportFormat);
 
-            Toast.makeText(requireContext(),
-                    "Report generated successfully",
-                    Toast.LENGTH_SHORT).show();
+            // Save and share the report
+            FileUtils.saveAndShareReport(requireContext(), report, eventId, format);
 
         } catch (Exception e) {
             Toast.makeText(requireContext(),
                     "Error generating report: " + e.getMessage(),
                     Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    private void checkStoragePermissionAndGenerateReport(String eventId, String format) {
+        // For Android 10 (API level 29) and above, we don't need storage permission for app-specific files
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            generateReport(eventId, format);
+            return;
+        }
+
+        // For Android 6.0 (API level 23) to Android 9.0 (API level 28)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (requireActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                // Save pending operation details
+                pendingEventId = eventId;
+                pendingFormat = format;
+
+                // Show permission rationale if needed
+                if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    new MaterialAlertDialogBuilder(requireContext())
+                            .setTitle("Permission Required")
+                            .setMessage("Storage permission is needed to save the report file.")
+                            .setPositiveButton("Grant Permission", (dialog, which) -> {
+                                // Request the permission
+                                requestPermissions(
+                                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                                        STORAGE_PERMISSION_CODE
+                                );
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                } else {
+                    // Request the permission directly
+                    requestPermissions(
+                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                            STORAGE_PERMISSION_CODE
+                    );
+                }
+            } else {
+                // Permission already granted
+                generateReport(eventId, format);
+            }
+        } else {
+            // For Android 5.1 (API level 22) and below, permissions are granted at install time
+            generateReport(eventId, format);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == STORAGE_PERMISSION_CODE) {
+            // Check if permission was granted
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, proceed with pending operation
+                if (pendingEventId != null && pendingFormat != null) {
+                    generateReport(pendingEventId, pendingFormat);
+                }
+            } else {
+                // Permission denied
+                if (!shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    // User clicked "Never ask again", show settings dialog
+                    new MaterialAlertDialogBuilder(requireContext())
+                            .setTitle("Permission Required")
+                            .setMessage("Storage permission is needed to save reports. Please grant the permission in Settings.")
+                            .setPositiveButton("Open Settings", (dialog, which) -> {
+                                Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                                Uri uri = Uri.fromParts("package", requireContext().getPackageName(), null);
+                                intent.setData(uri);
+                                startActivity(intent);
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                } else {
+                    Toast.makeText(requireContext(),
+                            "Storage permission is required to save reports",
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+            // Clear pending operation
+            pendingEventId = null;
+            pendingFormat = null;
         }
     }
 

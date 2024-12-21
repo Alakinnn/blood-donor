@@ -1,17 +1,10 @@
 package com.example.blood_donor.server.utils;
 
-import android.os.Build;
-
 import com.example.blood_donor.server.models.exceptions.AnalyticsErrorCode;
 import com.example.blood_donor.server.models.exceptions.AnalyticsException;
 import com.example.blood_donor.server.models.modules.ReportData;
 
-import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.FillPatternType;
-import org.apache.poi.ss.usermodel.Font;
-import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -19,39 +12,34 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 public class ExcelReportGenerator implements ReportGenerator {
     @Override
     public byte[] generate(ReportData data) throws AnalyticsException {
-        try (Workbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-
+        try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Analytics Report");
 
-            // Create styles
-            CellStyle headerStyle = createHeaderStyle(workbook);
-            CellStyle dataStyle = createDataStyle(workbook);
+            // Set fixed column widths (in units of 256)
+            sheet.setColumnWidth(0, 8000); // Metric column
+            sheet.setColumnWidth(1, 10000); // Value column
 
-            // Add title and timestamp
+            // Add title
             Row titleRow = sheet.createRow(0);
             Cell titleCell = titleRow.createCell(0);
             titleCell.setCellValue("Blood Donation Analytics Report");
-            titleCell.setCellStyle(headerStyle);
 
-            Row timestampRow = sheet.createRow(1);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                timestampRow.createCell(0).setCellValue("Generated: " +
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            }
+            // Add generation time
+            Row timeRow = sheet.createRow(1);
+            Cell timeCell = timeRow.createCell(0);
+            timeCell.setCellValue("Generated: " + LocalDateTime.now().toString());
 
             // Add headers
             Row headerRow = sheet.createRow(3);
-            headerRow.createCell(0).setCellValue("Metric");
-            headerRow.createCell(1).setCellValue("Value");
-            headerRow.getCell(0).setCellStyle(headerStyle);
-            headerRow.getCell(1).setCellStyle(headerStyle);
+            Cell headerCell1 = headerRow.createCell(0);
+            Cell headerCell2 = headerRow.createCell(1);
+            headerCell1.setCellValue("Metric");
+            headerCell2.setCellValue("Value");
 
             // Add data
             int rowNum = 4;
@@ -61,61 +49,27 @@ public class ExcelReportGenerator implements ReportGenerator {
                 Cell valueCell = row.createCell(1);
 
                 keyCell.setCellValue(entry.getKey());
-                keyCell.setCellStyle(dataStyle);
 
-                setCellValue(valueCell, entry.getValue());
-                valueCell.setCellStyle(dataStyle);
+                Object value = entry.getValue();
+                if (value instanceof Map) {
+                    // Handle Map values
+                    StringBuilder sb = new StringBuilder();
+                    ((Map<?, ?>) value).forEach((k, v) ->
+                            sb.append(k).append(": ").append(v).append("\n")
+                    );
+                    valueCell.setCellValue(sb.toString());
+                } else {
+                    valueCell.setCellValue(value.toString());
+                }
             }
 
-            // Auto-size columns
-            sheet.autoSizeColumn(0);
-            sheet.autoSizeColumn(1);
-
-            workbook.write(output);
-            return output.toByteArray();
+            // Write to byte array
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
 
         } catch (Exception e) {
             throw new AnalyticsException(AnalyticsErrorCode.EXPORT_ERROR, e.getMessage());
-        }
-    }
-
-    private CellStyle createHeaderStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
-
-        Font font = workbook.createFont();
-        font.setBold(true);
-        style.setFont(font);
-
-        return style;
-    }
-
-    private CellStyle createDataStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
-        return style;
-    }
-
-    private void setCellValue(Cell cell, Object value) {
-        if (value instanceof Number) {
-            cell.setCellValue(((Number) value).doubleValue());
-        } else if (value instanceof Boolean) {
-            cell.setCellValue((Boolean) value);
-        } else if (value instanceof Map) {
-            StringBuilder sb = new StringBuilder();
-            ((Map<?, ?>) value).forEach((k, v) ->
-                    sb.append(k).append(": ").append(v).append("\n"));
-            cell.setCellValue(sb.toString());
-        } else {
-            cell.setCellValue(value.toString());
         }
     }
 }
