@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 
 public class EventStatisticsActivity extends AppCompatActivity {
@@ -74,17 +75,37 @@ public class EventStatisticsActivity extends AppCompatActivity {
             // Get all registrations for this event
             List<Registration> registrations = ServiceLocator.getRegistrationRepository()
                     .getEventRegistrations(eventId);
+            Log.d("EventStatistics", "Found " + registrations.size() + " registrations");
 
             // Get user details for each registration
             Map<String, User> users = new HashMap<>();
             for (Registration reg : registrations) {
-                ServiceLocator.getUserRepository()
-                        .findById(reg.getUserId())
-                        .ifPresent(user -> users.put(user.getUserId(), user));
-            }
+                Log.d("EventStatistics", "Processing registration: " + reg.getRegistrationId()
+                        + ", User ID: " + reg.getUserId()
+                        + ", Type: " + reg.getType());
 
-            setupGenderChart(processGenderData(users.values()));
-            setupBloodTypeChart(processBloodTypeData(users.values()));
+                Optional<User> userOpt = ServiceLocator.getUserRepository().findById(reg.getUserId());
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    users.put(user.getUserId(), user);
+                    Log.d("EventStatistics", "Found user: " + user.getFullName()
+                            + ", Gender: " + user.getGender()
+                            + ", Blood Type: " + user.getBloodType());
+                } else {
+                    Log.d("EventStatistics", "User not found for ID: " + reg.getUserId());
+                }
+            }
+            Log.d("EventStatistics", "Found " + users.size() + " users with details");
+
+            // Process data for charts
+            Map<String, Integer> genderData = processGenderData(users.values());
+            Log.d("EventStatistics", "Gender distribution: " + genderData);
+
+            Map<String, Integer> bloodTypeData = processBloodTypeData(users.values());
+            Log.d("EventStatistics", "Blood type distribution: " + bloodTypeData);
+
+            setupGenderChart(genderData);
+            setupBloodTypeChart(bloodTypeData);
             setupParticipationChart(processParticipationData(registrations));
 
         } catch (AppException e) {
@@ -141,19 +162,25 @@ public class EventStatisticsActivity extends AppCompatActivity {
     private void setupBloodTypeChart(Map<String, Integer> bloodTypeData) {
         ArrayList<PieEntry> entries = new ArrayList<>();
 
-        for (Map.Entry<String, Integer> entry : bloodTypeData.entrySet()) {
-            entries.add(new PieEntry(entry.getValue(), entry.getKey()));
+        if (bloodTypeData.isEmpty()) {
+            // Add a single entry for "No Data"
+            entries.add(new PieEntry(1, "No Data Available"));
+        } else {
+            for (Map.Entry<String, Integer> entry : bloodTypeData.entrySet()) {
+                entries.add(new PieEntry(entry.getValue(), entry.getKey()));
+            }
         }
 
-        PieDataSet dataSet = new PieDataSet(entries, "Blood Types");
-        dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
+        PieDataSet dataSet = new PieDataSet(entries, bloodTypeData.isEmpty() ? "No Data" : "Blood Types");
+        dataSet.setColors(bloodTypeData.isEmpty() ?
+                new int[]{Color.LTGRAY} : ColorTemplate.MATERIAL_COLORS);
         dataSet.setValueTextSize(12f);
 
         PieData data = new PieData(dataSet);
         bloodTypeChart.setData(data);
         bloodTypeChart.getDescription().setEnabled(false);
         bloodTypeChart.setEntryLabelTextSize(12f);
-        bloodTypeChart.setCenterText("Blood Types");
+        bloodTypeChart.setCenterText(bloodTypeData.isEmpty() ? "No Data Available" : "Blood Types");
         bloodTypeChart.setCenterTextSize(16f);
         bloodTypeChart.animateY(1000);
         bloodTypeChart.invalidate();

@@ -13,11 +13,14 @@ import com.example.blood_donor.server.services.AuthService;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class DatabaseSeeder {
     private final DatabaseHelper dbHelper;
@@ -28,12 +31,23 @@ public class DatabaseSeeder {
     private static final String ADMIN_PASSWORD = "Admin123!";
 
     private static final String[][] DONOR_ACCOUNTS = {
-            // email, password, name, bloodType
-            {"donor1@test.com", "Donor123!", "John Smith", "A+"},
-            {"donor2@test.com", "Donor123!", "Sarah Johnson", "O-"},
-            {"donor3@test.com", "Donor123!", "Michael Brown", "B+"},
-            {"donor4@test.com", "Donor123!", "Emily Davis", "AB+"},
-            {"donor5@test.com", "Donor123!", "David Wilson", "O+"}
+            // email, password, name, bloodType, gender
+            {"donor1@test.com", "Donor123!", "John Smith", "A+", "M"},
+            {"donor2@test.com", "Donor123!", "Sarah Johnson", "O-", "F"},
+            {"donor3@test.com", "Donor123!", "Michael Brown", "B+", "M"},
+            {"donor4@test.com", "Donor123!", "Emily Davis", "AB+", "F"},
+            {"donor5@test.com", "Donor123!", "David Wilson", "O+", "M"},
+            // Additional donors
+            {"donor6@test.com", "Donor123!", "Emma Thompson", "A-", "F"},
+            {"donor7@test.com", "Donor123!", "James Anderson", "B-", "M"},
+            {"donor8@test.com", "Donor123!", "Sophie Turner", "AB-", "F"},
+            {"donor9@test.com", "Donor123!", "William Chen", "O+", "M"},
+            {"donor10@test.com", "Donor123!", "Maria Garcia", "A+", "F"},
+            {"donor11@test.com", "Donor123!", "Daniel Lee", "B+", "M"},
+            {"donor12@test.com", "Donor123!", "Olivia White", "O-", "F"},
+            {"donor13@test.com", "Donor123!", "Lucas Martin", "AB+", "M"},
+            {"donor14@test.com", "Donor123!", "Isabella Kim", "A-", "F"},
+            {"donor15@test.com", "Donor123!", "Noah Patel", "B-", "M"}
     };
 
     private static final String[][] MANAGER_ACCOUNTS = {
@@ -42,9 +56,14 @@ public class DatabaseSeeder {
             {"manager2@test.com", "Manager123!", "Lisa Anderson", "+1234567891"},
             {"manager3@test.com", "Manager123!", "James Martinez", "+1234567892"},
             {"manager4@test.com", "Manager123!", "Patricia Lee", "+1234567893"},
-            {"manager5@test.com", "Manager123!", "William Clark", "+1234567894"}
+            {"manager5@test.com", "Manager123!", "William Clark", "+1234567894"},
+            // Additional managers
+            {"manager6@test.com", "Manager123!", "Jennifer Wong", "+1234567895"},
+            {"manager7@test.com", "Manager123!", "Michael Rodriguez", "+1234567896"},
+            {"manager8@test.com", "Manager123!", "Susan Cooper", "+1234567897"},
+            {"manager9@test.com", "Manager123!", "David Chang", "+1234567898"},
+            {"manager10@test.com", "Manager123!", "Rachel Green", "+1234567899"}
     };
-
     private static final String[][] EVENT_DATA = {
             // title, description, address, bloodTypes (comma-separated), totalGoal
             {
@@ -97,28 +116,22 @@ public class DatabaseSeeder {
     public void seedDatabase() {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         try {
-            Log.d("DatabaseSeeder", "Starting database seeding");
             db.beginTransaction();
 
             // Create admin account
             String adminId = createAdminAccount(db);
-            Log.d("DatabaseSeeder", "Created admin account: " + adminId);
 
             // Create donor accounts
             String[] donorIds = createDonorAccounts(db);
-            Log.d("DatabaseSeeder", "Created " + donorIds.length + " donor accounts");
 
             // Create manager accounts
             String[] managerIds = createManagerAccounts(db);
-            Log.d("DatabaseSeeder", "Created " + managerIds.length + " manager accounts");
 
             // Create events
-            createEvents(db, managerIds);
+            createEvents(db, managerIds, donorIds);
 
             db.setTransactionSuccessful();
-            Log.d("DatabaseSeeder", "Database seeding completed successfully");
         } catch (Exception e) {
-            Log.e("DatabaseSeeder", "Error seeding database", e);
             e.printStackTrace();
         } finally {
             db.endTransaction();
@@ -153,10 +166,10 @@ public class DatabaseSeeder {
             values.put("email", DONOR_ACCOUNTS[i][0]);
             values.put("password", authService.hashPassword(DONOR_ACCOUNTS[i][1]));
             values.put("full_name", DONOR_ACCOUNTS[i][2]);
-            values.put("date_of_birth", getRandomBirthDate(18, 65));
             values.put("blood_type", DONOR_ACCOUNTS[i][3]);
+            values.put("gender", DONOR_ACCOUNTS[i][4]);
+            values.put("date_of_birth", getRandomBirthDate(18, 65));
             values.put("user_type", UserType.DONOR.name());
-            values.put("gender", Math.random() < 0.5 ? "M" : "F");
             values.put("created_at", System.currentTimeMillis());
             values.put("updated_at", System.currentTimeMillis());
 
@@ -181,7 +194,7 @@ public class DatabaseSeeder {
             values.put("phone_number", MANAGER_ACCOUNTS[i][3]);
             values.put("date_of_birth", getRandomBirthDate(25, 55));
             values.put("user_type", UserType.SITE_MANAGER.name());
-            values.put("gender", Math.random() < 0.5 ? "M" : "F");
+            values.put("gender", i % 2 == 0 ? "M" : "F");  // Alternate between M/F
             values.put("created_at", System.currentTimeMillis());
             values.put("updated_at", System.currentTimeMillis());
 
@@ -191,7 +204,7 @@ public class DatabaseSeeder {
         return managerIds;
     }
 
-    private void createEvents(SQLiteDatabase db, String[] managerIds) throws Exception {
+    private void createEvents(SQLiteDatabase db, String[] managerIds, String[] donorIds) throws Exception {
         for (int i = 0; i < EVENT_DATA.length; i++) {
             // Create location
             String locationId = UUID.randomUUID().toString();
@@ -256,42 +269,90 @@ public class DatabaseSeeder {
             db.insert("events", null, eventValues);
 
             // Create mock registrations
-            createMockRegistrations(db, eventId);
+            createMockRegistrations(db, eventId, donorIds, managerIds);
         }
     }
 
-    private void createMockRegistrations(SQLiteDatabase db, String eventId) throws Exception {
-        // Create 5-15 donor registrations
-        int donorCount = 5 + (int)(Math.random() * 10);
-        for (int i = 0; i < donorCount; i++) {
-            String registrationId = UUID.randomUUID().toString();
+    private void createMockRegistrations(SQLiteDatabase db, String eventId,
+                                         String[] donorIds, String[] managerIds) {
+        try {
+            Random random = new Random();
 
-            ContentValues values = new ContentValues();
-            values.put("registration_id", registrationId);
-            values.put("user_id", UUID.randomUUID().toString()); // Random donor ID
-            values.put("event_id", eventId);
-            values.put("type", RegistrationType.DONOR.name());
-            values.put("registration_time", System.currentTimeMillis());
-            values.put("status", "ACTIVE");
+            // Random number of donors (between 3 and 8)
+            int numDonors = random.nextInt(6) + 3;  // 3 to 8 donors
 
-            db.insert("registrations", null, values);
+            // Random number of volunteers (between 1 and 4)
+            int numVolunteers = random.nextInt(4) + 1;  // 1 to 4 volunteers
+
+            Log.d("DatabaseSeeder", String.format("Creating %d donors and %d volunteers for event %s",
+                    numDonors, numVolunteers, eventId));
+
+            // Create random donor registrations
+            List<String> usedDonorIds = new ArrayList<>();
+            for (int i = 0; i < numDonors; i++) {
+                // Pick a random donor that hasn't been used yet for this event
+                String donorId;
+                do {
+                    donorId = donorIds[random.nextInt(donorIds.length)];
+                } while (usedDonorIds.contains(donorId));
+                usedDonorIds.add(donorId);
+
+                String registrationId = UUID.randomUUID().toString();
+
+                ContentValues values = new ContentValues();
+                values.put("registration_id", registrationId);
+                values.put("user_id", donorId);
+                values.put("event_id", eventId);
+                values.put("type", RegistrationType.DONOR.name());
+                values.put("registration_time", getRandomTimeInRange(
+                        System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                        System.currentTimeMillis()
+                ));
+                values.put("status", "ACTIVE");
+
+                db.insert("registrations", null, values);
+                Log.d("DatabaseSeeder", "Created donor registration: " + registrationId +
+                        " for donor: " + donorId);
+            }
+
+            // Create random volunteer registrations
+            List<String> usedManagerIds = new ArrayList<>();
+            for (int i = 0; i < numVolunteers; i++) {
+                // Pick a random manager that hasn't been used yet for this event
+                String managerId;
+                do {
+                    managerId = managerIds[random.nextInt(managerIds.length)];
+                } while (usedManagerIds.contains(managerId));
+                usedManagerIds.add(managerId);
+
+                String registrationId = UUID.randomUUID().toString();
+
+                ContentValues values = new ContentValues();
+                values.put("registration_id", registrationId);
+                values.put("user_id", managerId);
+                values.put("event_id", eventId);
+                values.put("type", RegistrationType.VOLUNTEER.name());
+                values.put("registration_time", getRandomTimeInRange(
+                        System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                        System.currentTimeMillis()
+                ));
+                values.put("status", "ACTIVE");
+
+                db.insert("registrations", null, values);
+                Log.d("DatabaseSeeder", "Created volunteer registration: " + registrationId +
+                        " for manager: " + managerId);
+            }
+        } catch (Exception e) {
+            Log.e("DatabaseSeeder", "Error creating registrations", e);
+            throw e;
         }
+    }
 
-        // Create 2-5 volunteer registrations
-        int volunteerCount = 2 + (int)(Math.random() * 3);
-        for (int i = 0; i < volunteerCount; i++) {
-            String registrationId = UUID.randomUUID().toString();
-
-            ContentValues values = new ContentValues();
-            values.put("registration_id", registrationId);
-            values.put("user_id", UUID.randomUUID().toString()); // Random volunteer ID
-            values.put("event_id", eventId);
-            values.put("type", RegistrationType.VOLUNTEER.name());
-            values.put("registration_time", System.currentTimeMillis());
-            values.put("status", "ACTIVE");
-
-            db.insert("registrations", null, values);
-        }
+    // Helper method to get random time in a range
+    private long getRandomTimeInRange(long startTime, long endTime) {
+        Random random = new Random();
+        long diff = endTime - startTime;
+        return startTime + (long)(random.nextDouble() * diff);
     }
 
     private long getRandomBirthDate(int minAge, int maxAge) {
