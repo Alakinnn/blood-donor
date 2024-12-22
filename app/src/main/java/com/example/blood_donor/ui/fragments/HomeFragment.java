@@ -1,5 +1,6 @@
 package com.example.blood_donor.ui.fragments;
 
+import android.app.ActivityOptions;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.graphics.Color;
@@ -46,6 +47,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.transition.platform.MaterialSharedAxis;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -100,6 +102,10 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        MaterialSharedAxis enterTransition = new MaterialSharedAxis(MaterialSharedAxis.Z, true);
+        MaterialSharedAxis exitTransition = new MaterialSharedAxis(MaterialSharedAxis.Z, false);
+        requireActivity().getWindow().setExitTransition(exitTransition);
+        requireActivity().getWindow().setEnterTransition(enterTransition);
         loadUserName();
     }
 
@@ -310,13 +316,18 @@ public class HomeFragment extends Fragment {
         eventList.setLayoutManager(new LinearLayoutManager(getContext()));
         eventList.setAdapter(eventAdapter);
 
-        eventAdapter.setOnEventClickListener(event -> {
-            // Store the event data in cache before navigation
-            ServiceLocator.getEventService().cacheEventDetails(event);
-
-            Intent intent = new Intent(getActivity(), EventDetailsActivity.class);
+        eventAdapter.setOnEventClickListener((event, sharedElement) -> {
+            Intent intent = new Intent(requireActivity(), EventDetailsActivity.class);
             intent.putExtra("eventId", event.getEventId());
-            startActivity(intent);
+
+            // Set up the shared element transition
+            ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(
+                    requireActivity(),
+                    sharedElement,
+                    "event_card_transition"
+            );
+
+            startActivity(intent, options.toBundle());
         });
 
 

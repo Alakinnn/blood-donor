@@ -40,7 +40,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     private boolean isHistoryView = false;
 
     public interface OnEventClickListener {
-        void onEventClick(EventSummaryDTO event);
+        void onEventClick(EventSummaryDTO event, View sharedElement);
     }
 
     public void setIsHistoryView(boolean isHistoryView) {
@@ -86,9 +86,9 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
         }
         if (cancelClickListener != null && holder.cancelButton != null) {
             holder.cancelButton.setVisibility(View.VISIBLE);
-            holder.cancelButton.setOnClickListener(v ->
-                    cancelClickListener.onEventClick(events.get(position))
-            );
+            holder.cancelButton.setOnClickListener(v -> {
+                cancelClickListener.onEventClick(events.get(position), v);
+            });
         }
         if (showManagerActions) {
             holder.managerActions.setVisibility(View.VISIBLE);
@@ -209,7 +209,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
 
             detailsButton.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onEventClick(event);
+                    listener.onEventClick(event, itemView.findViewById(R.id.eventCard));
                 }
             });
 

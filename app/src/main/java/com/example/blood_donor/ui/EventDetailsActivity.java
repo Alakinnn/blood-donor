@@ -1,6 +1,7 @@
 package com.example.blood_donor.ui;
 
 import android.annotation.SuppressLint;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -20,6 +21,7 @@ import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.textview.MaterialTextView;
+import com.google.android.material.transition.platform.MaterialContainerTransform;
 
 import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
@@ -66,6 +68,13 @@ public class EventDetailsActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        MaterialContainerTransform transform = new MaterialContainerTransform();
+        transform.setScrimColor(Color.TRANSPARENT); // Optional: no dimming
+        transform.setDuration(300); // Adjust the duration as needed
+
+        getWindow().setSharedElementEnterTransition(transform);
+        getWindow().setSharedElementReturnTransition(transform);
 
         initializeViews();
         loadEventDetails();

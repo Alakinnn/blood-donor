@@ -1,5 +1,6 @@
 package com.example.blood_donor.ui.fragments;
 
+import android.app.ActivityOptions;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -98,11 +99,20 @@ public class EventListFragment extends Fragment {
         }
 
         // Set up click listeners
-        adapter.setOnEventClickListener(event -> {
+        adapter.setOnEventClickListener((event, sharedElement) -> {
             Intent intent = new Intent(requireContext(), EventDetailsActivity.class);
             intent.putExtra("eventId", event.getEventId());
-            startActivity(intent);
+
+            // Set up shared element transition
+            ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(
+                    requireActivity(),
+                    sharedElement, // The shared element passed from the ViewHolder
+                    "event_card_transition" // Must match the transitionName in the layout
+            );
+
+            startActivity(intent, options.toBundle());
         });
+
 
         // Set up action listeners if needed
         if (type.equals("all_events") || type.equals("managed_events")) {
@@ -137,7 +147,7 @@ public class EventListFragment extends Fragment {
 
         // Add cancel button for super user
         if (AuthManager.getInstance().getUserType() == UserType.SUPER_USER) {
-            adapter.setOnCancelClickListener(event -> {
+            adapter.setOnCancelClickListener((event, sharedElement) -> {
                 new MaterialAlertDialogBuilder(requireContext())
                         .setTitle("Cancel Event")
                         .setMessage("Are you sure you want to cancel this event?")

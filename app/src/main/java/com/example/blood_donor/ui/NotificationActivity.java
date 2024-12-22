@@ -1,5 +1,6 @@
 package com.example.blood_donor.ui;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
@@ -13,6 +14,8 @@ import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.NotificationManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.transition.platform.MaterialContainerTransform;
+
 import java.util.List;
 
 public class NotificationActivity extends AppCompatActivity {

@@ -42,7 +42,8 @@
                         android:layout_height="48dp"
                         android:layout_gravity="center"
                         android:background="?attr/selectableItemBackgroundBorderless"
-                        android:src="@drawable/ic_notifications" />
+                        android:src="@drawable/ic_notifications"
+                        android:transitionName="notification_bell_transition"/>
 
                     <View
                         android:id="@+id/notificationDot"
