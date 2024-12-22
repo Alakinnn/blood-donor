@@ -40,11 +40,22 @@ public class ServiceLocator {
     private static DonationRegistrationService donationRegistrationService;
     private static IAnalyticsService analyticsService;
     private static SuperUserEventService superUserEventService;
+    private static NotificationManager notificationManager;
 
 
     public static void init(Context context) {
         applicationContext = context.getApplicationContext();
         databaseHelper = new DatabaseHelper(applicationContext);
+    }
+
+    public static synchronized NotificationManager getNotificationManager() {
+        if (notificationManager == null) {
+            notificationManager = new NotificationManager(
+                    applicationContext,
+                    getDatabaseHelper()
+            );
+        }
+        return notificationManager;
     }
 
     public static synchronized DatabaseHelper getDatabaseHelper() {

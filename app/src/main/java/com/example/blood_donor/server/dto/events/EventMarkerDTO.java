@@ -1,5 +1,7 @@
 package com.example.blood_donor.server.dto.events;
 
+import com.example.blood_donor.server.models.event.EventStatus;
+
 import java.util.List;
 
 public class EventMarkerDTO {
@@ -14,12 +16,13 @@ public class EventMarkerDTO {
     private int registeredDonors;
     private double latitude;
     private double longitude;
+    private EventStatus status;
 
     // Constructor
     public EventMarkerDTO(String eventId, String title, String address, long startTime,
                           long endTime, List<String> requiredBloodTypes, double bloodGoal,
                           double currentBloodCollected, int registeredDonors,
-                          double latitude, double longitude) {
+                          double latitude, double longitude, EventStatus status) {
         this.eventId = eventId;
         this.title = title;
         this.address = address;
@@ -31,6 +34,7 @@ public class EventMarkerDTO {
         this.registeredDonors = registeredDonors;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.status = status;
     }
 
     // Getters and setters
@@ -54,6 +58,14 @@ public class EventMarkerDTO {
 
     public double getBloodGoal() { return bloodGoal; }
     public void setBloodGoal(double bloodGoal) { this.bloodGoal = bloodGoal; }
+
+    public EventStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(EventStatus status) {
+        this.status = status;
+    }
 
     public double getCurrentBloodCollected() { return currentBloodCollected; }
     public void setCurrentBloodCollected(double currentBloodCollected) { this.currentBloodCollected = currentBloodCollected; }

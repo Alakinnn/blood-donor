@@ -7,6 +7,14 @@
     android:padding="12dp"
     android:elevation="4dp">
 
+    <TextView
+        android:id="@+id/event_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/colorPrimary"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp"/>
+
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/title"
         style="@style/TextAppearance.BloodDonor.Body1"

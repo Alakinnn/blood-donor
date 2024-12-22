@@ -73,6 +73,23 @@ public class SuperUserEventService {
             event.setStatus(EventStatus.CANCELLED);
             eventRepository.save(event);
 
+            // Get all registrations for this event
+            List<Registration> registrations = registrationRepository.getEventRegistrations(eventId);
+
+            // Create notification for each participant using the existing notificationManager
+            NotificationManager notificationManager = ServiceLocator.getNotificationManager();
+            if (notificationManager != null) {
+                for (Registration reg : registrations) {
+                    notificationManager.createEventNotification(
+                            reg.getUserId(),
+                            eventId,
+                            "Event Cancelled",
+                            String.format("The event '%s' has been cancelled", event.getTitle()),
+                            NotificationType.EVENT_UPDATE
+                    );
+                }
+            }
+
             return ApiResponse.success(null);
         } catch (AppException e) {
             return ApiResponse.error(e.getErrorCode(), e.getMessage());

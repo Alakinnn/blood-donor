@@ -1,7 +1,9 @@
 package com.example.blood_donor.ui.adapters;
 
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.graphics.Color;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -148,8 +150,35 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             reportButton = itemView.findViewById(R.id.reportButton);
         }
 
+        @SuppressLint("SetTextI18n")
         void bind(EventSummaryDTO event) {
+            TextView statusView = itemView.findViewById(R.id.event_status);
+            if (statusView != null && event.getStatus() != null) {
+                statusView.setVisibility(View.VISIBLE);
+                statusView.setText("Status: " + event.getStatus());
+
+                // Set color based on status
+                int statusColor;
+                switch (event.getStatus()) {
+                    case COMPLETED:
+                        statusColor = Color.rgb(76, 175, 80); // Green
+                        break;
+                    case CANCELLED:
+                        statusColor = Color.rgb(244, 67, 54); // Red
+                        break;
+                    case IN_PROGRESS:
+                        statusColor = Color.rgb(33, 150, 243); // Blue
+                        break;
+                    default:
+                        statusColor = Color.rgb(158, 158, 158); // Grey for UPCOMING
+                }
+                statusView.setTextColor(statusColor);
+            }
             titleView.setText(event.getTitle());
+            dateTimeView.setText(String.format("%s - %s",
+                    dateFormat.format(new Date(event.getStartTime())),
+                    dateFormat.format(new Date(event.getEndTime()))
+            ));
             dateTimeView.setText(String.format("%s - %s",
                     dateFormat.format(new Date(event.getStartTime())),
                     dateFormat.format(new Date(event.getEndTime()))

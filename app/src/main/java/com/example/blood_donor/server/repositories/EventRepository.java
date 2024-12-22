@@ -17,6 +17,7 @@ import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.errors.ErrorCode;
 import com.example.blood_donor.server.models.event.BloodTypeRequirement;
 import com.example.blood_donor.server.models.event.DonationEvent;
+import com.example.blood_donor.server.models.event.EventStatus;
 import com.example.blood_donor.server.models.location.Location;
 import com.example.blood_donor.server.utils.QueryBuilder;
 
@@ -294,9 +295,6 @@ public class EventRepository implements IEventRepository {
             String bloodTypeTargetsJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_type_targets"));
             String bloodCollectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
 
-            Log.d("EventRepository", "Blood type targets JSON: " + bloodTypeTargetsJson);
-            Log.d("EventRepository", "Blood collected JSON: " + bloodCollectedJson);
-
             // Parse blood type targets into a map
             Map<String, Double> bloodTypeTargets = new HashMap<>();
             try {
@@ -307,10 +305,7 @@ public class EventRepository implements IEventRepository {
                     try {
                         double targetAmount = targets.getDouble(bloodType);
                         bloodTypeTargets.put(bloodType, targetAmount);
-                        Log.d("EventRepository", String.format("Blood type %s - Target: %.2f",
-                                bloodType, targetAmount));
                     } catch (JSONException e) {
-                        Log.e("EventRepository", "Error parsing target for blood type: " + bloodType, e);
                         bloodTypeTargets.put(bloodType, 0.0); // Default to 0 if parsing fails
                     }
                 }
@@ -365,8 +360,6 @@ public class EventRepository implements IEventRepository {
                     try {
                         double collectedAmount = collected.getDouble(bloodType);
                         event.recordDonation(bloodType, collectedAmount);
-                        Log.d("EventRepository", String.format("Blood type %s - Collected: %.2f",
-                                bloodType, collectedAmount));
                     } catch (JSONException e) {
                         Log.e("EventRepository", "Error parsing collected amount for blood type: " + bloodType, e);
                     }
@@ -374,12 +367,12 @@ public class EventRepository implements IEventRepository {
             } catch (JSONException e) {
                 Log.e("EventRepository", "Error parsing blood collected JSON", e);
             }
+            String statusStr = cursor.getString(cursor.getColumnIndexOrThrow("status"));
+            event.setStatus(EventStatus.valueOf(statusStr));
 
             return event;
 
         } catch (Exception e) {
-            Log.e("EventRepository", "Error in cursorToEvent", e);
-            Log.e("EventRepository", "Available columns: " + Arrays.toString(cursor.getColumnNames()));
             throw new RuntimeException("Error parsing event data", e);
         }
     }
@@ -395,7 +388,6 @@ public class EventRepository implements IEventRepository {
                     bloodTypeTargets.put(type, targets.getDouble(type));
                 }
             } catch (JSONException e) {
-                Log.e("EventRepository", "Error parsing blood type targets: " + e.getMessage());
                 throw new RuntimeException("Error parsing blood type targets", e);
             }
         }
@@ -450,7 +442,6 @@ public class EventRepository implements IEventRepository {
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
-            Log.d("EventRepository", "Finding event with ID: " + eventId);
 
             db = dbHelper.getReadableDatabase();
 
@@ -486,16 +477,13 @@ public class EventRepository implements IEventRepository {
                 Log.d("EventRepository", "Event found with location data");
                 // Verify we have all required columns
                 String[] columns = cursor.getColumnNames();
-                Log.d("EventRepository", "Columns found: " + Arrays.toString(columns));
 
                 return Optional.of(cursorToEvent(cursor));
             }
 
-            Log.d("EventRepository", "Event not found after join");
             return Optional.empty();
 
         } catch (Exception e) {
-            Log.e("EventRepository", "Error finding event", e);
             throw new AppException(ErrorCode.DATABASE_ERROR, "Database error: " + e.getMessage());
         } finally {
             if (cursor != null) cursor.close();
@@ -741,6 +729,8 @@ public class EventRepository implements IEventRepository {
                 summary.setDonationStartTime(LocalTime.parse(startTimeStr));
                 summary.setDonationEndTime(LocalTime.parse(endTimeStr));
             }
+            String statusStr = cursor.getString(cursor.getColumnIndexOrThrow("status"));
+            summary.setStatus(EventStatus.valueOf(statusStr));
 
             summaries.add(summary);
         }

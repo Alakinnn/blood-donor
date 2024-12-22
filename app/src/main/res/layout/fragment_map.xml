@@ -117,6 +117,14 @@
             android:padding="16dp">
 
             <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/event_status"
+                style="@style/TextAppearance.BloodDonor.Body1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/colorPrimary"
+                android:visibility="gone" />
+
+            <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/event_title"
                 style="@style/TextAppearance.BloodDonor.Headline2"
                 android:layout_width="match_parent"

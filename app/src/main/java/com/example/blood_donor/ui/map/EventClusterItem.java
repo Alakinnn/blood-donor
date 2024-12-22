@@ -15,6 +15,7 @@ public class EventClusterItem implements ClusterItem {
     private final double currentBloodCollected;
     private final long startTime;
     private final long endTime;
+    private final String status;
 
     public EventClusterItem(EventMarkerDTO event) {
         this.position = new LatLng(event.getLatitude(), event.getLongitude());
@@ -25,6 +26,7 @@ public class EventClusterItem implements ClusterItem {
         this.currentBloodCollected = event.getCurrentBloodCollected();
         this.startTime = event.getStartTime();
         this.endTime = event.getEndTime();
+        this.status = String.valueOf(event.getStatus());
     }
 
     @Override
@@ -35,6 +37,10 @@ public class EventClusterItem implements ClusterItem {
     @Override
     public String getTitle() {
         return title;
+    }
+
+    public String getStatus() {
+        return status;
     }
 
     @Override

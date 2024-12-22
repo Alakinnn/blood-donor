@@ -38,8 +38,11 @@ public class BaseActivity extends AppCompatActivity {
         // Set menu based on user type
         UserType userType = AuthManager.getInstance().getUserType();
         bottomNavigation.getMenu().clear();
-        bottomNavigation.inflateMenu(userType == UserType.SITE_MANAGER ?
-                R.menu.bottom_nav_manager : R.menu.bottom_nav_donor);
+        if (userType == UserType.SITE_MANAGER || userType == UserType.SUPER_USER) {
+            bottomNavigation.inflateMenu(R.menu.bottom_nav_manager);
+        } else {
+            bottomNavigation.inflateMenu(R.menu.bottom_nav_donor);
+        }
 
         bottomNavigation.setOnItemSelectedListener(item -> {
             Fragment fragment = null;
@@ -52,7 +55,8 @@ public class BaseActivity extends AppCompatActivity {
             } else if (itemId == R.id.nav_profile) {
                 fragment = new ProfileFragment();
             } else if (itemId == R.id.nav_create_event &&
-                    AuthManager.getInstance().getUserType() == UserType.SITE_MANAGER) {
+                    (AuthManager.getInstance().getUserType() == UserType.SITE_MANAGER ||
+                            AuthManager.getInstance().getUserType() == UserType.SUPER_USER)) {  // Modified this line
                 fragment = new CreateEventFragment();
                 loadFragment(fragment);
                 return true;

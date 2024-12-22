@@ -71,7 +71,7 @@ public class HistoryFragment extends Fragment {
         tabLayout = view.findViewById(R.id.tabLayout);
     }
 
-    private void showReportFormatDialog(String eventId) {
+    void showReportFormatDialog(String eventId) {
         String[] formats = {"CSV", "PDF", "EXCEL"};
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Select Report Format")
@@ -219,206 +219,47 @@ public class HistoryFragment extends Fragment {
 }
 
 // ViewPager adapter for the history tabs
-class HistoryPagerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+class HistoryPagerAdapter extends androidx.viewpager2.adapter.FragmentStateAdapter {
     private final Fragment fragment;
     private final boolean isManager;
-    private final int itemCount;
     private final HistoryFragment.EventActionCallback callback;
+    private final UserType userType;
 
     public HistoryPagerAdapter(Fragment fragment, boolean isManager, HistoryFragment.EventActionCallback callback) {
+        super(fragment);
         this.fragment = fragment;
         this.isManager = isManager;
-        this.itemCount = isManager ? 2 : 1;
         this.callback = callback;
-    }
-
-    @NonNull
-    @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.layout_history_page, parent, false);
-        return new HistoryViewHolder(view);
-    }
-
-    @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        HistoryViewHolder historyHolder = (HistoryViewHolder) holder;
-        if (position == 0) {
-            loadJoinedEvents(historyHolder.recyclerView);
-        } else {
-            loadManagedEvents(historyHolder.recyclerView);
-        }
+        this.userType = AuthManager.getInstance().getUserType();
     }
 
     @Override
     public int getItemCount() {
-        return itemCount;
-    }
-
-    private void loadJoinedEvents(RecyclerView recyclerView) {
-        String userId = AuthManager.getInstance().getUserId();
-        try {
-            List<EventSummaryDTO> events = ServiceLocator.getEventRepository()
-                    .findJoinedEvents(userId);
-
-            EventAdapter adapter = new EventAdapter();
-            adapter.setOnEventClickListener(event -> {
-                Intent intent = new Intent(fragment.requireContext(),
-                        EventDetailsActivity.class);
-                intent.putExtra("eventId", event.getEventId());
-                fragment.startActivity(intent);
-            });
-
-            recyclerView.setAdapter(adapter);
-            adapter.addEvents(events);
-        } catch (AppException e) {
-            Toast.makeText(recyclerView.getContext(),
-                    "Error loading events: " + e.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+        if (userType == UserType.SUPER_USER) {
+            return 1; // Only "All Events" tab
+        } else if (userType == UserType.SITE_MANAGER) {
+            return 2; // "Joined Events" and "My Events" tabs
+        } else {
+            return 1; // "My Events" tab for donors
         }
     }
 
-    private void loadManagedEvents(RecyclerView recyclerView) {
-        String userId = AuthManager.getInstance().getUserId();
-        try {
-            List<EventSummaryDTO> events;
-            UserType userType = AuthManager.getInstance().getUserType();
+    @NonNull
+    @Override
+    public Fragment createFragment(int position) {
+        EventListFragment eventListFragment = new EventListFragment();
+        Bundle args = new Bundle();
 
-            if (userType == UserType.SUPER_USER) {
-                // Get all events for super user
-                EventQueryDTO query = new EventQueryDTO(
-                        null, null, null, null, null,
-                        "date", "desc", 1, 50, null, null
-                );
-                ApiResponse<List<DonationEvent>> response =
-                        ServiceLocator.getSuperUserEventService().findAllEvents(query);
-
-                if (!response.isSuccess()) {
-                    throw new AppException(response.getErrorCode(), response.getMessage());
-                }
-
-                ApiResponse<List<EventSummaryDTO>> summaryResponse =
-                        ServiceLocator.getEventService().convertToEventSummaries(response.getData());
-                events = summaryResponse.getData();
-            } else {
-                // For regular managers, get only their managed events
-                events = ServiceLocator.getEventRepository().findManagedEvents(userId);
-            }
-
-            // Use normal EventAdapter for both manager and super user
-            EventAdapter adapter = new EventAdapter();
-            adapter.setShowManagerActions(true);
-            setupNormalAdapter(adapter, recyclerView);
-
-            // Add cancel button for super user
-            if (userType == UserType.SUPER_USER) {
-                adapter.setOnCancelClickListener(event -> {
-                    new MaterialAlertDialogBuilder(fragment.requireContext())
-                            .setTitle("Cancel Event")
-                            .setMessage("Are you sure you want to cancel this event?")
-                            .setPositiveButton("Yes", (dialog, which) -> {
-                                ApiResponse<Void> response =
-                                        ServiceLocator.getSuperUserEventService().cancelEvent(event.getEventId());
-                                if (response.isSuccess()) {
-                                    Toast.makeText(fragment.getContext(),
-                                            "Event cancelled", Toast.LENGTH_SHORT).show();
-                                    loadManagedEvents(recyclerView); // Reload the list
-                                } else {
-                                    Toast.makeText(fragment.getContext(),
-                                            response.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                            })
-                            .setNegativeButton("No", null)
-                            .show();
-                });
-            }
-
-            recyclerView.setAdapter(adapter);
-            adapter.addEvents(events);
-
-        } catch (AppException e) {
-            Toast.makeText(fragment.requireContext(),
-                    "Error loading events: " + e.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+        if (userType == UserType.SUPER_USER) {
+            args.putString("type", "all_events");
+        } else if (userType == UserType.SITE_MANAGER) {
+            args.putString("type", position == 0 ? "joined_events" : "managed_events");
+        } else {
+            args.putString("type", "joined_events");
         }
-    }
 
-    private void setupSuperUserAdapter(SuperUserEventAdapter adapter, RecyclerView recyclerView) {
-        adapter.setOnEventClickListener(event -> {
-            Intent intent = new Intent(fragment.requireContext(), EventDetailsActivity.class);
-            intent.putExtra("eventId", event.getEventId());
-            fragment.startActivity(intent);
-        });
-
-        adapter.setOnEventActionListener(new SuperUserEventAdapter.OnEventActionListener() {
-            @Override
-            public void onStatisticsClick(EventSummaryDTO event) {
-                Intent intent = new Intent(fragment.requireContext(), EventStatisticsActivity.class);
-                intent.putExtra("eventId", event.getEventId());
-                fragment.startActivity(intent);
-            }
-
-            @Override
-            public void onReportClick(EventSummaryDTO event) {
-                callback.showReportFormatDialog(event.getEventId());
-            }
-
-            @Override
-            public void onEditClick(EventSummaryDTO event) {
-                Intent intent = new Intent(fragment.requireContext(), EditEventActivity.class);
-                intent.putExtra("eventId", event.getEventId());
-                fragment.startActivity(intent);
-            }
-
-            @Override
-            public void onCancelClick(EventSummaryDTO event) {
-                new MaterialAlertDialogBuilder(fragment.requireContext())
-                        .setTitle("Cancel Event")
-                        .setMessage("Are you sure you want to cancel this event?")
-                        .setPositiveButton("Yes", (dialog, which) -> {
-                            ApiResponse<Void> response =
-                                    ServiceLocator.getSuperUserEventService().cancelEvent(event.getEventId());
-                            if (response.isSuccess()) {
-                                Toast.makeText(fragment.getContext(), "Event cancelled", Toast.LENGTH_SHORT).show();
-                                loadManagedEvents(recyclerView); // Reload the list
-                            } else {
-                                Toast.makeText(fragment.getContext(), response.getMessage(),
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        })
-                        .setNegativeButton("No", null)
-                        .show();
-            }
-        });
-    }
-
-    private void setupNormalAdapter(EventAdapter adapter, RecyclerView recyclerView) {
-        adapter.setOnEventClickListener(event -> {
-            Intent intent = new Intent(fragment.requireContext(), EventDetailsActivity.class);
-            intent.putExtra("eventId", event.getEventId());
-            fragment.startActivity(intent);
-        });
-
-        adapter.setOnEventActionListener(new EventAdapter.OnEventActionListener() {
-            @Override
-            public void onStatisticsClick(EventSummaryDTO event) {
-                Intent intent = new Intent(fragment.requireContext(), EventStatisticsActivity.class);
-                intent.putExtra("eventId", event.getEventId());
-                fragment.startActivity(intent);
-            }
-
-            @Override
-            public void onReportClick(EventSummaryDTO event) {
-                callback.showReportFormatDialog(event.getEventId());
-            }
-
-            @Override
-            public void onEditClick(EventSummaryDTO event) {
-                Intent intent = new Intent(fragment.requireContext(), EditEventActivity.class);
-                intent.putExtra("eventId", event.getEventId());
-                fragment.startActivity(intent);
-            }
-        });
+        eventListFragment.setArguments(args);
+        return eventListFragment;
     }
 }
 

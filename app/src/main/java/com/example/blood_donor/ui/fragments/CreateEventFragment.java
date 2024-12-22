@@ -56,9 +56,12 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
     private boolean isMapExpanded = false;
     private MaterialButton startTimeBtn, endTimeBtn, startDateBtn, endDateBtn;
     private long startDate, endDate;
+    private long selectedStartDate;
+    private long selectedEndDate;
     private LocalTime startTime, endTime;
     private TextInputLayout managerEmailLayout;
     private TextInputEditText managerEmailInput;
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -168,25 +171,53 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
     }
 
     private void showDatePickerDialog(boolean isStartDate) {
+        Calendar minDate = Calendar.getInstance();
+        minDate.add(Calendar.DAY_OF_MONTH, 3); // Add 3 days to current date
+        minDate.set(Calendar.HOUR_OF_DAY, 0);
+        minDate.set(Calendar.MINUTE, 0);
+        minDate.set(Calendar.SECOND, 0);
+        minDate.set(Calendar.MILLISECOND, 0);
+
         Calendar calendar = Calendar.getInstance();
-        @SuppressLint("SetTextI18n") DatePickerDialog datePickerDialog = new DatePickerDialog(
+        if (isStartDate && selectedStartDate > 0) {
+            calendar.setTimeInMillis(selectedStartDate);
+        } else if (!isStartDate && selectedEndDate > 0) {
+            calendar.setTimeInMillis(selectedEndDate);
+        }
+
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
                 requireContext(),
                 (view, year, month, dayOfMonth) -> {
-                    Calendar selectedCalendar = Calendar.getInstance();
-                    selectedCalendar.set(year, month, dayOfMonth);
+                    Calendar selectedCal = Calendar.getInstance();
+                    selectedCal.set(year, month, dayOfMonth);
+                    selectedCal.set(Calendar.HOUR_OF_DAY, 0);
+                    selectedCal.set(Calendar.MINUTE, 0);
+                    selectedCal.set(Calendar.SECOND, 0);
+                    selectedCal.set(Calendar.MILLISECOND, 0);
+
+                    // Check if selected date is at least 3 days from now
+                    if (selectedCal.before(minDate)) {
+                        Toast.makeText(requireContext(),
+                                "Event must be at least 3 days from today",
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
 
                     if (isStartDate) {
-                        startDate = selectedCalendar.getTimeInMillis();
-                        startDateBtn.setText("Start: " + formatDate(startDate));
+                        selectedStartDate = selectedCal.getTimeInMillis();
+                        startDateBtn.setText(dateFormat.format(selectedCal.getTime()));
                     } else {
-                        endDate = selectedCalendar.getTimeInMillis();
-                        endDateBtn.setText("End: " + formatDate(endDate));
+                        selectedEndDate = selectedCal.getTimeInMillis();
+                        endDateBtn.setText(dateFormat.format(selectedCal.getTime()));
                     }
                 },
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
                 calendar.get(Calendar.DAY_OF_MONTH)
         );
+
+        // Set minimum date to 3 days from now
+        datePickerDialog.getDatePicker().setMinDate(minDate.getTimeInMillis());
         datePickerDialog.show();
     }
 

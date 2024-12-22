@@ -141,11 +141,7 @@ public class NotificationManager {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         try {
             db.beginTransaction();
-            // Instead of deleting, update the is_read status
-            ContentValues values = new ContentValues();
-            values.put("is_read", 1);
-            db.update(NOTIFICATION_TABLE,
-                    values,
+            db.delete(NOTIFICATION_TABLE,
                     "notification_id = ?",
                     new String[]{notificationId});
             db.setTransactionSuccessful();

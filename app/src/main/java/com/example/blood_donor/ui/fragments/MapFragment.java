@@ -89,6 +89,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     private Long selectedStartDate;
     private Long selectedEndDate;
     private View dateFilterContainer;
+    private TextView eventStatusView;
 
     public MapFragment() {
         this.eventService = ServiceLocator.getEventService();
@@ -120,6 +121,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         startDateButton = view.findViewById(R.id.startDateButton);
         endDateButton = view.findViewById(R.id.endDateButton);
         clearDatesButton = view.findViewById(R.id.clearDatesButton);
+        eventStatusView = view.findViewById(R.id.event_status);
 
         // Setup click listeners
         startDateButton.setOnClickListener(v -> showDatePicker(true));
@@ -425,6 +427,10 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     private void updateBottomSheet(EventMarkerDTO event) {
         eventTitleView.setText(event.getTitle());
+        if (eventStatusView != null && event.getStatus() != null) {
+            eventStatusView.setVisibility(View.VISIBLE);
+            eventStatusView.setText("Status: " + event.getStatus());
+        }
         eventDateView.setText(String.format("%s - %s",
                 dateFormat.format(new Date(event.getStartTime())),
                 dateFormat.format(new Date(event.getEndTime()))));

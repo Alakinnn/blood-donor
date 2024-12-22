@@ -29,7 +29,11 @@ public class CustomInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
         TextView titleText = window.findViewById(R.id.title);
         TextView snippetText = window.findViewById(R.id.snippet);
         TextView progressText = window.findViewById(R.id.progress);
-
+        TextView statusText = window.findViewById(R.id.event_status);
+        if (event.getStatus() != null) {
+            statusText.setText("Status: " + event.getStatus());
+            statusText.setVisibility(View.VISIBLE);
+        }
         titleText.setText(event.getTitle());
         snippetText.setText(event.getSnippet());
         progressText.setText(String.format("%.1f%% Complete",
