@@ -1,5 +1,7 @@
 package com.example.blood_donor.server.dto.events;
 
+import com.example.blood_donor.server.models.event.EventStatus;
+
 import java.time.LocalTime;
 import java.util.List;
 
@@ -20,6 +22,15 @@ public class EventSummaryDTO {
     private double totalProgress;private String address;
     private int registeredDonors;
     private int registeredVolunteers;
+    private EventStatus status;
+
+    public EventStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(EventStatus status) {
+        this.status = status;
+    }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }

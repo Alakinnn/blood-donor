@@ -14,7 +14,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
+import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.ui.EditEventActivity;
+import com.example.blood_donor.ui.manager.AuthManager;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 
@@ -28,13 +30,23 @@ import java.util.Locale;
 public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHolder> {
     private final List<EventSummaryDTO> events = new ArrayList<>();
     private OnEventClickListener listener;
+    private OnEventClickListener cancelClickListener;
     private static final SimpleDateFormat dateFormat =
             new SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault());
     private OnEventActionListener actionListener;
     private boolean showManagerActions = false;
+    private boolean isHistoryView = false;
 
     public interface OnEventClickListener {
         void onEventClick(EventSummaryDTO event);
+    }
+
+    public void setIsHistoryView(boolean isHistoryView) {
+        this.isHistoryView = isHistoryView;
+    }
+
+    public void setOnCancelClickListener(OnEventClickListener listener) {
+        this.cancelClickListener = listener;
     }
 
     public interface OnEventActionListener {
@@ -66,6 +78,25 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     @Override
     public void onBindViewHolder(@NonNull EventViewHolder holder, int position) {
         holder.bind(events.get(position));
+        if (holder.managerActions != null) {
+            holder.managerActions.setVisibility(
+                    showManagerActions && isHistoryView ? View.VISIBLE : View.GONE);
+        }
+        if (cancelClickListener != null && holder.cancelButton != null) {
+            holder.cancelButton.setVisibility(View.VISIBLE);
+            holder.cancelButton.setOnClickListener(v ->
+                    cancelClickListener.onEventClick(events.get(position))
+            );
+        }
+        if (showManagerActions) {
+            holder.managerActions.setVisibility(View.VISIBLE);
+            holder.editButton.setVisibility(View.VISIBLE);
+
+            // Show cancel button only for super user
+            if (AuthManager.getInstance().getUserType() == UserType.SUPER_USER) {
+                holder.cancelButton.setVisibility(View.VISIBLE);
+            }
+        }
     }
 
     @Override
@@ -92,6 +123,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     class EventViewHolder extends RecyclerView.ViewHolder {
         private final TextView titleView;
         private View managerActions;
+        private MaterialButton cancelButton;
         private MaterialButton statisticsButton;
         private MaterialButton reportButton;
         private final TextView dateTimeView;
@@ -112,6 +144,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             bloodTypesView = itemView.findViewById(R.id.requiredBloodTypes);
             managerActions = itemView.findViewById(R.id.managerActions);
             statisticsButton = itemView.findViewById(R.id.statisticsButton);
+            cancelButton = itemView.findViewById(R.id.cancelButton);
             reportButton = itemView.findViewById(R.id.reportButton);
         }
 

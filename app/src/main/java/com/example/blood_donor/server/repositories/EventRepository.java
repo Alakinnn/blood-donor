@@ -20,7 +20,6 @@ import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.location.Location;
 import com.example.blood_donor.server.utils.QueryBuilder;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -45,7 +44,7 @@ public class EventRepository implements IEventRepository {
     }
 
     @Override
-    public List<DonationEvent> findEvents(EventQueryDTO query) throws AppException {
+    public List<DonationEvent> findVisibleEvents(EventQueryDTO query) throws AppException {
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
@@ -133,6 +132,122 @@ public class EventRepository implements IEventRepository {
             throw new AppException(ErrorCode.DATABASE_ERROR, e.getMessage());
         } finally {
             if (cursor != null) cursor.close();
+        }
+    }
+
+    @Override
+    public List<DonationEvent> findAllEvents(EventQueryDTO query) throws AppException {
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
+        try {
+            db = dbHelper.getReadableDatabase();
+
+            QueryBuilder queryBuilder = new QueryBuilder();
+            queryBuilder.select("e.id AS event_id, e.title, e.description AS event_description, " +
+                            "e.start_time, e.end_time, e.blood_type_targets, " +
+                            "e.blood_collected, e.host_id, e.status, " +
+                            "e.donation_start_time, e.donation_end_time, " +
+                            "l.id AS location_id, l.address, l.latitude, l.longitude, " +
+                            "l.description AS location_description")
+                    .from("events e")
+                    .join("locations l ON e.location_id = l.id");
+
+            List<String> conditions = new ArrayList<>();
+            List<String> args = new ArrayList<>();
+
+            // Add search conditions
+            if (query.getSearchTerm() != null && !query.getSearchTerm().isEmpty()) {
+                conditions.add("e.title LIKE ?");
+                args.add("%" + query.getSearchTerm() + "%");
+            }
+
+            // Add blood type filter
+            if (query.getBloodTypes() != null && !query.getBloodTypes().isEmpty()) {
+                List<String> bloodTypeConditions = new ArrayList<>();
+                for (String bloodType : query.getBloodTypes()) {
+                    bloodTypeConditions.add("e.blood_type_targets LIKE ?");
+                    args.add("%" + bloodType + "%");
+                }
+                conditions.add("(" + String.join(" OR ", bloodTypeConditions) + ")");
+            }
+
+            // Add date filters
+            if (query.getStartDateFilter() != null) {
+                conditions.add("e.start_time >= ?");
+                args.add(String.valueOf(query.getStartDateFilter()));
+            }
+            if (query.getEndDateFilter() != null) {
+                conditions.add("e.end_time <= ?");
+                args.add(String.valueOf(query.getEndDateFilter()));
+            }
+
+            // Combine conditions
+            if (!conditions.isEmpty()) {
+                queryBuilder.where(String.join(" AND ", conditions),
+                        args.toArray(new String[0]));
+            }
+
+            // Add sorting
+            if ("date".equals(query.getSortBy())) {
+                queryBuilder.orderBy("e.start_time " + query.getSortOrder());
+            }
+
+            // Add pagination
+            queryBuilder.limit(query.getPageSize())
+                    .offset((query.getPage() - 1) * query.getPageSize());
+
+            cursor = queryBuilder.execute(db);
+
+            List<DonationEvent> events = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                events.add(cursorToEvent(cursor));
+            }
+
+            // Handle distance calculations if location provided
+            if (query.getLatitude() != null && query.getLongitude() != null) {
+                for (DonationEvent event : events) {
+                    double distance = calculateDistance(
+                            query.getLatitude(), query.getLongitude(),
+                            event.getLocation().getLatitude(),
+                            event.getLocation().getLongitude()
+                    );
+                    event.setDistance(distance);
+                }
+
+                if ("distance".equals(query.getSortBy())) {
+                    Collections.sort(events, (e1, e2) -> {
+                        int result = Double.compare(e1.getDistance(), e2.getDistance());
+                        return "desc".equalsIgnoreCase(query.getSortOrder()) ? -result : result;
+                    });
+                }
+            }
+
+            return events;
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR, e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
+    private void handleDistanceCalculations(List<DonationEvent> events, EventQueryDTO query) {
+        if (query.getLatitude() != null && query.getLongitude() != null) {
+            for (DonationEvent event : events) {
+                double distance = calculateDistance(
+                        query.getLatitude(), query.getLongitude(),
+                        event.getLocation().getLatitude(),
+                        event.getLocation().getLongitude()
+                );
+                event.setDistance(distance);
+            }
+
+            // Sort by distance if requested
+            if ("distance".equals(query.getSortBy())) {
+                Collections.sort(events, (e1, e2) -> {
+                    int result = Double.compare(e1.getDistance(), e2.getDistance());
+                    return "desc".equalsIgnoreCase(query.getSortOrder()) ? -result : result;
+                });
+            }
         }
     }
 

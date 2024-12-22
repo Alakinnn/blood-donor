@@ -192,7 +192,7 @@ public class EventService implements IEventService {
     @Override
     public ApiResponse<List<EventSummaryDTO>> getEventSummaries(EventQueryDTO query) {
         try {
-            List<DonationEvent> events = eventRepository.findEvents(query);
+            List<DonationEvent> events = eventRepository.findVisibleEvents(query);
             Log.d("EventService", "Found " + events.size() + " events in database");
 
             List<EventSummaryDTO> summaries = events.stream()

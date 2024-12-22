@@ -1,5 +1,6 @@
 package com.example.blood_donor.ui.fragments;
 
+import android.annotation.SuppressLint;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.location.Address;
@@ -19,6 +20,7 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.CreateEventDTO;
 import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.google.android.gms.maps.GoogleMap;
@@ -29,6 +31,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -42,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 public class CreateEventFragment extends Fragment implements OnMapReadyCallback {
     private GoogleMap map;
@@ -53,6 +57,8 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
     private MaterialButton startTimeBtn, endTimeBtn, startDateBtn, endDateBtn;
     private long startDate, endDate;
     private LocalTime startTime, endTime;
+    private TextInputLayout managerEmailLayout;
+    private TextInputEditText managerEmailInput;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -71,8 +77,15 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
     private void initializeViews(View view) {
         mapPreviewCard = view.findViewById(R.id.mapPreviewCard);
         locationText = view.findViewById(R.id.locationText);
-
+        managerEmailLayout = view.findViewById(R.id.managerEmailLayout);
+        managerEmailInput = view.findViewById(R.id.managerEmailInput);
         mapPreviewCard.setOnClickListener(v -> toggleMapExpansion());
+
+        if (AuthManager.getInstance().getUserType() == UserType.SUPER_USER) {
+            managerEmailLayout.setVisibility(View.VISIBLE);
+        } else {
+            managerEmailLayout.setVisibility(View.GONE);
+        }
     }
 
     private void setupTimeSelectors(View view) {
@@ -84,7 +97,7 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
     }
 
     private void showTimePickerDialog(boolean isStartTime) {
-        TimePickerDialog timePickerDialog = new TimePickerDialog(
+        @SuppressLint("SetTextI18n") TimePickerDialog timePickerDialog = new TimePickerDialog(
                 requireContext(),
                 (view, hourOfDay, minute) -> {
                     String time = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
@@ -135,6 +148,7 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
         try {
             List<Address> addresses = geocoder.getFromLocation(
                     latLng.latitude, latLng.longitude, 1);
+            assert addresses != null;
             if (!addresses.isEmpty()) {
                 Address address = addresses.get(0);
                 selectedAddress = address.getAddressLine(0);
@@ -155,7 +169,7 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
 
     private void showDatePickerDialog(boolean isStartDate) {
         Calendar calendar = Calendar.getInstance();
-        DatePickerDialog datePickerDialog = new DatePickerDialog(
+        @SuppressLint("SetTextI18n") DatePickerDialog datePickerDialog = new DatePickerDialog(
                 requireContext(),
                 (view, year, month, dayOfMonth) -> {
                     Calendar selectedCalendar = Calendar.getInstance();
@@ -208,8 +222,8 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
 
     private void handleEventCreation() {
         // Get all form inputs
-        String title = ((TextInputEditText) requireView().findViewById(R.id.titleInput)).getText().toString();
-        String description = ((TextInputEditText) requireView().findViewById(R.id.descriptionInput)).getText().toString();
+        String title = Objects.requireNonNull(((TextInputEditText) requireView().findViewById(R.id.titleInput)).getText()).toString();
+        String description = Objects.requireNonNull(((TextInputEditText) requireView().findViewById(R.id.descriptionInput)).getText()).toString();
 
         // Basic field validation
         if (title.isEmpty() || description.isEmpty() || selectedLocation == null ||
@@ -253,7 +267,7 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
             TextView typeLabel = child.findViewById(R.id.bloodTypeLabel);
             TextInputEditText amountInput = child.findViewById(R.id.amountInput);
             String bloodType = typeLabel.getText().toString();
-            String amount = amountInput.getText().toString().trim();
+            String amount = Objects.requireNonNull(amountInput.getText()).toString().trim();
 
             if (!amount.isEmpty()) {
                 try {
@@ -285,19 +299,21 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
         );
         eventDTO.setBloodTypeTargets(bloodTypeTargets);
 
-        String userId = AuthManager.getInstance().getUserId();
-        ApiResponse<DonationEvent> response = ServiceLocator.getEventService()
-                .createEvent(userId, eventDTO);
+        if (AuthManager.getInstance().getUserType() == UserType.SUPER_USER) {
+            String managerEmail = Objects.requireNonNull(managerEmailInput.getText()).toString().trim();
+            if (managerEmail.isEmpty()) {
+                Toast.makeText(getContext(), "Manager email is required", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-        if (response.isSuccess()) {
-            Toast.makeText(getContext(),
-                    "Event created successfully",
-                    Toast.LENGTH_SHORT).show();
-            navigateToMap(response.getData());
+            ApiResponse<DonationEvent> response = ServiceLocator.getSuperUserEventService()
+                    .createEventForManager(managerEmail, eventDTO);
+            handleCreateResponse(response);
         } else {
-            Toast.makeText(getContext(),
-                    response.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+            String userId = AuthManager.getInstance().getUserId();
+            ApiResponse<DonationEvent> response = ServiceLocator.getEventService()
+                    .createEvent(userId, eventDTO);
+            handleCreateResponse(response);
         }
     }
 
@@ -306,6 +322,17 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
                 .mapToDouble(Double::doubleValue)
                 .sum();
     }
+
+    private void handleCreateResponse(ApiResponse<DonationEvent> response) {
+        if (response.isSuccess()) {
+            Toast.makeText(getContext(), "Event created successfully", Toast.LENGTH_SHORT).show();
+            navigateToMap(response.getData());
+        } else {
+            Toast.makeText(getContext(), response.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
     private void navigateToMap(DonationEvent event) {
         // Navigate to MapFragment
         MapFragment mapFragment = new MapFragment();

@@ -24,9 +24,12 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventMarkerDTO;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
+import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.ui.EventDetailsActivity;
+import com.example.blood_donor.ui.manager.AuthManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
 import com.example.blood_donor.ui.map.MapSearchView;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -368,7 +371,17 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 null
         );
 
-        ApiResponse<List<EventMarkerDTO>> response = eventService.getEventMarkers(query);
+        ApiResponse<List<EventMarkerDTO>> response;
+        if (AuthManager.getInstance().getUserType() == UserType.SUPER_USER) {
+            // Super users can see all events
+            List<DonationEvent> allEvents = ServiceLocator.getSuperUserEventService()
+                    .findAllEvents(query).getData();
+            response = ServiceLocator.getEventService().getEventMarkers(query);
+        } else {
+            // Regular users only see visible events
+            response = ServiceLocator.getEventService().getEventMarkers(query);
+        }
+
         if (response.isSuccess() && response.getData() != null) {
             updateMarkers(response.getData());
         }

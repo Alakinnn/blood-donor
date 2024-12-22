@@ -10,7 +10,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface IEventRepository {
-    List<DonationEvent> findEvents(EventQueryDTO query) throws AppException;
+    List<DonationEvent> findVisibleEvents(EventQueryDTO query) throws AppException;
+    List<DonationEvent> findAllEvents(EventQueryDTO query) throws AppException;
     Optional<DonationEvent> findById(String eventId) throws AppException;
     int countEvents(EventQueryDTO query) throws AppException;
     Optional<DonationEvent> save(DonationEvent event) throws AppException;

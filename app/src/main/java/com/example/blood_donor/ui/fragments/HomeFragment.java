@@ -28,8 +28,10 @@ import com.example.blood_donor.R;
 import com.example.blood_donor.server.dto.events.EventSummaryDTO;
 import com.example.blood_donor.server.dto.locations.EventQueryDTO;
 import com.example.blood_donor.server.errors.AppException;
+import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.models.user.User;
+import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.server.notifications.NotificationItem;
 import com.example.blood_donor.ui.EventDetailsActivity;
 import com.example.blood_donor.ui.NotificationActivity;
@@ -353,20 +355,32 @@ public class HomeFragment extends Fragment {
         isLoading = true;
 
         EventQueryDTO query = new EventQueryDTO(
-                null, // latitude
-                null, // longitude
-                null, // zoomLevel
-                searchLayout.getEditText().getText().toString(), // searchTerm
-                selectedBloodTypes.isEmpty() ? null : selectedBloodTypes, // Add blood type filter
-                "date", // sortBy
-                "desc", // sortOrder
-                page + 1, // page number
-                PAGE_SIZE, // pageSize,
+                null,
+                null,
+                null,
+                searchLayout.getEditText().getText().toString(),
+                selectedBloodTypes.isEmpty() ? null : selectedBloodTypes,
+                "date",
+                "desc",
+                page + 1,
+                PAGE_SIZE,
                 selectedStartDate,
                 selectedEndDate
         );
 
-        ApiResponse<List<EventSummaryDTO>> response = eventService.getEventSummaries(query);
+        ApiResponse<List<EventSummaryDTO>> response;
+        if (AuthManager.getInstance().getUserType() == UserType.SUPER_USER) {
+            ApiResponse<List<DonationEvent>> allEvents = ServiceLocator.getSuperUserEventService()
+                    .findAllEvents(query);
+            if (allEvents.isSuccess()) {
+                response = ServiceLocator.getEventService().convertToEventSummaries(allEvents.getData());
+            } else {
+                response = ApiResponse.error(allEvents.getErrorCode(), allEvents.getMessage());
+            }
+        } else {
+            response = ServiceLocator.getEventService().getEventSummaries(query);
+        }
+
         if (response.isSuccess() && response.getData() != null) {
             requireActivity().runOnUiThread(() -> {
                 eventAdapter.addEvents(response.getData());
