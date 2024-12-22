@@ -32,6 +32,7 @@ import com.example.blood_donor.server.models.response.ApiResponse;
 import com.example.blood_donor.server.models.user.User;
 import com.example.blood_donor.server.notifications.NotificationItem;
 import com.example.blood_donor.ui.EventDetailsActivity;
+import com.example.blood_donor.ui.NotificationActivity;
 import com.example.blood_donor.ui.adapters.EventAdapter;
 import com.example.blood_donor.ui.adapters.FunFactAdapter;
 import com.example.blood_donor.ui.adapters.NotificationAdapter;
@@ -74,7 +75,6 @@ public class HomeFragment extends Fragment {
     private View notificationDot;
     private ImageButton notificationBell;
     private PopupWindow notificationPopup;
-    private NotificationAdapter notificationAdapter;
     private Handler refreshHandler = new Handler();
     private static final long REFRESH_INTERVAL = TimeUnit.MINUTES.toMillis(1);
 
@@ -127,7 +127,6 @@ public class HomeFragment extends Fragment {
             filterContainer.setVisibility(isVisible ? View.GONE : View.VISIBLE);
             view.findViewById(R.id.dateFilterContainer).setVisibility(isVisible ? View.GONE : View.VISIBLE);
         });
-        notificationBell.setOnClickListener(v -> showNotificationPopup(v));
     }
 
     private void setupNotificationSystem() {
@@ -149,19 +148,11 @@ public class HomeFragment extends Fragment {
 
         // Start periodic checks
         startNotificationChecks();
-    }
 
-    private void setupNotificationUI() {
-        ImageButton notificationBell = requireView().findViewById(R.id.notificationBell);
-        View notificationDot = requireView().findViewById(R.id.notificationDot);
-
-        notificationBell.setOnClickListener(v -> showNotificationPopup(v));
-
-        // Initialize adapter
-        notificationAdapter = new NotificationAdapter();
-        notificationAdapter.setOnDeleteClickListener(notificationId -> {
-            notificationManager.deleteNotification(notificationId);
-            checkUnreadNotifications();
+        // Set click listener for notification bell
+        notificationBell.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), NotificationActivity.class);
+            startActivity(intent);
         });
     }
 
@@ -207,68 +198,6 @@ public class HomeFragment extends Fragment {
                 }
             }
         }, TimeUnit.MINUTES.toMillis(1));
-    }
-
-    private void showNotificationPopup(View anchor) {
-        if (notificationManager == null || !isAdded()) return;
-
-        if (notificationPopup != null && notificationPopup.isShowing()) {
-            notificationPopup.dismiss();
-            return;
-        }
-
-        View popupView = getLayoutInflater().inflate(R.layout.popup_notifications, null);
-        RecyclerView recyclerView = popupView.findViewById(R.id.notificationsList);
-        MaterialButton clearAllButton = popupView.findViewById(R.id.clearAllButton);
-
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        NotificationAdapter adapter = new NotificationAdapter();
-        recyclerView.setAdapter(adapter);
-
-        String userId = AuthManager.getInstance().getUserId();
-        List<NotificationItem> notifications = notificationManager.getAllNotifications(userId);
-        adapter.setNotifications(notifications);
-
-        adapter.setOnDeleteClickListener(notificationId -> {
-            notificationManager.deleteNotification(notificationId);
-            // Refresh the list after deletion
-            adapter.setNotifications(notificationManager.getAllNotifications(userId));
-        });
-
-        notificationPopup = new PopupWindow(
-                popupView,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                true
-        );
-
-        clearAllButton.setOnClickListener(v -> {
-            notificationManager.deleteAllNotifications(userId);
-            notificationPopup.dismiss();
-        });
-
-        // Mark notifications as read
-        notificationManager.markAllAsRead(userId);
-
-        // Apply background dim effect
-        View container = new View(requireContext());
-        container.setBackgroundColor(Color.parseColor("#80000000")); // Semi-transparent black
-        container.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
-
-        // Show popup with background dim
-        PopupWindow dimPopup = new PopupWindow(container,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                false);
-        dimPopup.showAtLocation(getView(), Gravity.NO_GRAVITY, 0, 0);
-
-        notificationPopup.setOnDismissListener(() -> dimPopup.dismiss());
-        notificationPopup.showAsDropDown(anchor);
-
-        // Set elevation to show above dim background
-        popupView.setElevation(16f);
     }
 
     @Override

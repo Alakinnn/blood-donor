@@ -30,17 +30,28 @@ public class NotificationManager {
 
     public void createEventNotification(String userId, String eventId, String title, String message, NotificationType type) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put("notification_id", UUID.randomUUID().toString());
-        values.put("user_id", userId);
-        values.put("event_id", eventId);
-        values.put("title", title);
-        values.put("message", message);
-        values.put("type", type.name());
-        values.put("is_read", 0);
-        values.put("created_at", System.currentTimeMillis());
+        try {
+            db.beginTransaction();
 
-        db.insert(NOTIFICATION_TABLE, null, values);
+            ContentValues values = new ContentValues();
+            values.put("notification_id", UUID.randomUUID().toString());
+            values.put("user_id", userId);
+            values.put("event_id", eventId);
+            values.put("title", title);
+            values.put("message", message);
+            values.put("type", type.name());
+            values.put("is_read", 0);
+            values.put("created_at", System.currentTimeMillis());
+
+            db.insert(NOTIFICATION_TABLE, null, values);
+            db.setTransactionSuccessful();
+
+            notifyNotificationCountChanged(userId);
+        } finally {
+            if (db != null) {
+                db.endTransaction();
+            }
+        }
     }
 
     public List<NotificationItem> getUnreadNotifications(String userId) {
@@ -52,7 +63,8 @@ public class NotificationManager {
                 null,
                 "user_id = ? AND is_read = 0",
                 new String[]{userId},
-                null, null, "created_at DESC"
+                null, null,
+                "created_at DESC"
         );
 
         while (cursor.moveToNext()) {
@@ -72,7 +84,8 @@ public class NotificationManager {
                 null,
                 "user_id = ?",
                 new String[]{userId},
-                null, null, "created_at DESC"
+                null, null,
+                "created_at DESC" // Most recent first
         );
 
         while (cursor.moveToNext()) {
@@ -96,41 +109,72 @@ public class NotificationManager {
 
     public void markAllAsRead(String userId) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put("is_read", 1);
+        try {
+            db.beginTransaction();
+            ContentValues values = new ContentValues();
+            values.put("is_read", 1);
 
-        db.update(NOTIFICATION_TABLE,
-                values,
-                "user_id = ? AND is_read = 0",
-                new String[]{userId});
-    }
+            db.update(NOTIFICATION_TABLE,
+                    values,
+                    "user_id = ? AND is_read = 0",
+                    new String[]{userId});
 
-    public void deleteNotification(String notificationId) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.delete(NOTIFICATION_TABLE,
-                "notification_id = ?",
-                new String[]{notificationId});
-    }
-
-    public void deleteAllNotifications(String userId) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.delete(NOTIFICATION_TABLE,
-                "user_id = ?",
-                new String[]{userId});
-
-        // Ensure notification dot is updated
+            db.setTransactionSuccessful();
+        } finally {
+            if (db != null) {
+                db.endTransaction();
+            }
+        }
         notifyNotificationCountChanged(userId);
     }
 
     private void notifyNotificationCountChanged(String userId) {
-        // This will be called after any operation that changes the notification count
         List<NotificationItem> unread = getUnreadNotifications(userId);
         boolean hasUnread = !unread.isEmpty();
 
-        // You can implement a callback or event system here to update the UI
         if (notificationCallback != null) {
             notificationCallback.onNotificationCountChanged(hasUnread);
         }
+    }
+
+    public void deleteNotification(String notificationId) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        try {
+            db.beginTransaction();
+            // Instead of deleting, update the is_read status
+            ContentValues values = new ContentValues();
+            values.put("is_read", 1);
+            db.update(NOTIFICATION_TABLE,
+                    values,
+                    "notification_id = ?",
+                    new String[]{notificationId});
+            db.setTransactionSuccessful();
+        } finally {
+            if (db != null) {
+                db.endTransaction();
+            }
+        }
+    }
+
+    public void deleteAllNotifications(String userId) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        try {
+            db.beginTransaction();
+            // Instead of deleting, update all notifications as read
+            ContentValues values = new ContentValues();
+            values.put("is_read", 1);
+            db.update(NOTIFICATION_TABLE,
+                    values,
+                    "user_id = ?",
+                    new String[]{userId});
+            db.setTransactionSuccessful();
+        } finally {
+            if (db != null) {
+                db.endTransaction();
+            }
+        }
+        // Notify that notification count changed
+        notifyNotificationCountChanged(userId);
     }
 
     public interface NotificationCallback {

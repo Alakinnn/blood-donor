@@ -5,13 +5,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.example.blood_donor.R;
 import com.example.blood_donor.server.notifications.NotificationItem;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -41,8 +38,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        NotificationItem item = notifications.get(position);
-        holder.bind(item);
+        holder.bind(notifications.get(position));
     }
 
     @Override
@@ -50,14 +46,24 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         return notifications.size();
     }
 
-    public void setNotifications(List<NotificationItem> notifications) {
-        this.notifications = notifications;
+    public void setNotifications(List<NotificationItem> newNotifications) {
+        this.notifications = new ArrayList<>(newNotifications);
         notifyDataSetChanged();
     }
 
-    public void removeNotification(int position) {
-        notifications.remove(position);
-        notifyItemRemoved(position);
+    public void clearNotifications() {
+        this.notifications.clear();
+        notifyDataSetChanged();
+    }
+
+    public void removeNotification(String notificationId) {
+        for (int i = 0; i < notifications.size(); i++) {
+            if (notifications.get(i).getNotificationId().equals(notificationId)) {
+                notifications.remove(i);
+                notifyItemRemoved(i);
+                break;
+            }
+        }
     }
 
     class ViewHolder extends RecyclerView.ViewHolder {
@@ -80,9 +86,8 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             timeView.setText(formatTime(item.getCreatedAt()));
 
             deleteButton.setOnClickListener(v -> {
-                if (deleteListener != null) {
+                if (deleteListener != null && getAdapterPosition() != RecyclerView.NO_POSITION) {
                     deleteListener.onDeleteClick(item.getNotificationId());
-                    removeNotification(getAdapterPosition());
                 }
             });
         }
@@ -104,4 +109,3 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         }
     }
 }
-
