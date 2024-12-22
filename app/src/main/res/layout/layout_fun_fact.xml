@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     style="@style/Widget.BloodDonor.CardView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -11,27 +12,43 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="16dp"
+        android:padding="24dp"
+        android:background="@color/white">
 
->
+        <!-- Illustration Container -->
+        <ImageView
+            android:id="@+id/funFactImage"
+            android:layout_width="200dp"
+            android:layout_height="180dp"
+            android:layout_marginBottom="24dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="Fun fact illustration"/>
 
-        <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/funFactTitle"
-            style="@style/TextAppearance.BloodDonor.Headline2"
-            android:layout_width="wrap_content"
+        <!-- Text Container -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textAlignment="center"
-            android:textColor="@color/colorPrimary"/>
+            android:orientation="vertical"
+            android:gravity="center">
 
-        <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/funFactContent"
-            style="@style/TextAppearance.BloodDonor.Body1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textAlignment="center"
-            android:textColor="@color/textPrimary"/>
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/funFactTitle"
+                style="@style/TextAppearance.BloodDonor.Headline2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAlignment="center"
+                android:textColor="@color/colorPrimary"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/funFactContent"
+                style="@style/TextAppearance.BloodDonor.Body1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAlignment="center"
+                android:textColor="@color/textSecondary"/>
+        </LinearLayout>
+
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
-
-    <!--        android:background="@drawable/fun_fact_gradient"-->

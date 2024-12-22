@@ -57,6 +57,8 @@ import java.util.concurrent.TimeUnit;
 
 public class HomeFragment extends Fragment {
     private ViewPager2 funFactsCarousel;
+    private final Handler sliderHandler = new Handler(Looper.getMainLooper());
+    private static final long SLIDER_DELAY = 5000;
     private RecyclerView eventList;
     private TextInputLayout searchLayout;
     private View filterContainer;
@@ -79,13 +81,6 @@ public class HomeFragment extends Fragment {
     private PopupWindow notificationPopup;
     private Handler refreshHandler = new Handler();
     private static final long REFRESH_INTERVAL = TimeUnit.MINUTES.toMillis(1);
-
-
-    private final List<String> funFacts = Arrays.asList(
-            "One donation can save up to three lives",
-            "Blood can't be manufactured – it can only come from donors",
-            "A person needs blood every two seconds"
-    );
 
     public HomeFragment() {
         this.eventService = ServiceLocator.getEventService();
@@ -187,6 +182,7 @@ public class HomeFragment extends Fragment {
         if (notificationManager != null) {
             checkUnreadNotifications();
         }
+        setupFunFactsCarousel();
     }
 
     private void startNotificationChecks() {
@@ -208,6 +204,7 @@ public class HomeFragment extends Fragment {
         if (notificationPopup != null && notificationPopup.isShowing()) {
             notificationPopup.dismiss();
         }
+        sliderHandler.removeCallbacksAndMessages(null);
     }
 
     private void showDatePicker(boolean isStartDate) {
@@ -260,8 +257,52 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupFunFactsCarousel() {
+        List<FunFactAdapter.FunFactItem> funFacts = Arrays.asList(
+                new FunFactAdapter.FunFactItem(
+                        "Save Lives",
+                        "One donation can save up to three lives. Your single contribution can make a significant impact.",
+                        R.drawable.fact_three_lives
+                ),
+                new FunFactAdapter.FunFactItem(
+                        "Constant Need",
+                        "Someone needs blood every two seconds. The need for blood is continuous and your donation matters.",
+                        R.drawable.fact_every_two_seconds
+                ),
+                new FunFactAdapter.FunFactItem(
+                        "Unique Resource",
+                        "Blood can't be manufactured – it can only come from generous donors like you.",
+                        R.drawable.fact_cannot_manufacture
+                )
+        );
+
         FunFactAdapter adapter = new FunFactAdapter(funFacts);
         funFactsCarousel.setAdapter(adapter);
+
+        // Auto-sliding functionality
+        Runnable sliderRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (funFactsCarousel.getCurrentItem() == funFacts.size() - 1) {
+                    funFactsCarousel.setCurrentItem(0);
+                } else {
+                    funFactsCarousel.setCurrentItem(funFactsCarousel.getCurrentItem() + 1);
+                }
+            }
+        };
+
+        // Setup page change callback
+        funFactsCarousel.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override
+            public void onPageSelected(int position) {
+                super.onPageSelected(position);
+                // Reset timer when page is manually changed
+                sliderHandler.removeCallbacks(sliderRunnable);
+                sliderHandler.postDelayed(sliderRunnable, SLIDER_DELAY);
+            }
+        });
+
+        // Start auto-sliding
+        sliderHandler.postDelayed(sliderRunnable, SLIDER_DELAY);
     }
 
     private void setupEventList() {
