@@ -1,5 +1,6 @@
 package com.example.blood_donor.ui;
 
+import android.annotation.SuppressLint;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.location.Address;
@@ -22,9 +23,12 @@ import com.example.blood_donor.server.dto.events.EventDetailDTO;
 import com.example.blood_donor.server.dto.events.UpdateEventDTO;
 import com.example.blood_donor.server.errors.AppException;
 import com.example.blood_donor.server.models.donation.Registration;
+import com.example.blood_donor.server.models.event.BloodTypeRequirement;
 import com.example.blood_donor.server.models.event.DonationEvent;
 import com.example.blood_donor.server.models.notification.NotificationType;
 import com.example.blood_donor.server.models.response.ApiResponse;
+import com.example.blood_donor.server.models.user.User;
+import com.example.blood_donor.server.models.user.UserType;
 import com.example.blood_donor.server.services.EventService;
 import com.example.blood_donor.ui.manager.NotificationManager;
 import com.example.blood_donor.ui.manager.ServiceLocator;
@@ -43,12 +47,15 @@ import com.google.android.material.textfield.TextInputLayout;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class EditEventActivity extends AppCompatActivity implements OnMapReadyCallback {
@@ -157,10 +164,9 @@ public class EditEventActivity extends AppCompatActivity implements OnMapReadyCa
         }
     }
 
+    @SuppressLint("MissingSuperCall")
     @Override
     public void onBackPressed() {
-        // Show confirmation dialog if there are unsaved changes
-        super.onBackPressed();
         if (hasUnsavedChanges()) {
             new MaterialAlertDialogBuilder(this)
                     .setTitle("Unsaved Changes")
@@ -185,34 +191,46 @@ public class EditEventActivity extends AppCompatActivity implements OnMapReadyCa
 
 
     private boolean hasUnsavedChanges() {
-        // Compare current values with original values
-        boolean titleChanged = !titleInput.getText().toString().equals(eventDetails.getTitle());
-        boolean descriptionChanged = !descriptionInput.getText().toString().equals(eventDetails.getDescription());
-        boolean addressChanged = !locationInput.getText().toString().equals(eventDetails.getAddress());
+        // Check title and description changes
+        if (!titleInput.getText().toString().equals(eventDetails.getTitle()) ||
+                !descriptionInput.getText().toString().equals(eventDetails.getDescription())) {
+            return true;
+        }
 
-        // Compare dates and times
-        boolean dateTimeChanged = startDate.getTimeInMillis() != eventDetails.getStartTime() ||
-                endDate.getTimeInMillis() != eventDetails.getEndTime();
+        // Check date/time changes
+        if (startDate.getTimeInMillis() != eventDetails.getStartTime() ||
+                endDate.getTimeInMillis() != eventDetails.getEndTime() ||
+                !startTime.equals(eventDetails.getDonationStartTime()) ||
+                !endTime.equals(eventDetails.getDonationEndTime())) {
+            return true;
+        }
 
-        // Compare blood type targets
-        boolean bloodTypeTargetsChanged = false;
+        // Check location changes
+        if (!address.equals(eventDetails.getAddress()) ||
+                latitude != eventDetails.getLatitude() ||
+                longitude != eventDetails.getLongitude()) {
+            return true;
+        }
+
+        // Check blood type target changes
+        Map<String, Double> currentTargets = new HashMap<>();
+        for (BloodTypeProgress progress : eventDetails.getBloodProgress()) {
+            currentTargets.put(progress.getBloodType(), progress.getTargetAmount());
+        }
+
         for (Map.Entry<String, EditText> entry : bloodTypeInputs.entrySet()) {
-            String currentValue = entry.getValue().getText().toString();
-            double originalValue = 0.0;
-            for (BloodTypeProgress progress : eventDetails.getBloodProgress()) {
-                if (progress.getBloodType().equals(entry.getKey())) {
-                    originalValue = progress.getTargetAmount();
-                    break;
+            String bloodType = entry.getKey();
+            String newValue = entry.getValue().getText().toString();
+            if (!newValue.isEmpty()) {
+                double newTarget = Double.parseDouble(newValue);
+                if (!currentTargets.containsKey(bloodType) ||
+                        Math.abs(currentTargets.get(bloodType) - newTarget) > 0.01) {
+                    return true;
                 }
-            }
-            if (!currentValue.isEmpty() && Double.parseDouble(currentValue) != originalValue) {
-                bloodTypeTargetsChanged = true;
-                break;
             }
         }
 
-        return titleChanged || descriptionChanged || addressChanged ||
-                dateTimeChanged || bloodTypeTargetsChanged;
+        return false;
     }
 
     private void initializeViews() {
@@ -223,9 +241,12 @@ public class EditEventActivity extends AppCompatActivity implements OnMapReadyCa
         startTimeBtn = findViewById(R.id.startTimeBtn);
         endTimeBtn = findViewById(R.id.endTimeBtn);
         locationInput = findViewById(R.id.locationInput);
+        locationInput.setFocusable(false);
+        locationInput.setClickable(false);
         bloodTypeContainer = findViewById(R.id.bloodTypeContainer);
 
         findViewById(R.id.saveButton).setOnClickListener(v -> saveChanges());
+        findViewById(R.id.backButton).setOnClickListener(v -> onBackPressed());
     }
 
     private void setupDateTimeListeners() {
@@ -271,6 +292,23 @@ public class EditEventActivity extends AppCompatActivity implements OnMapReadyCa
         bloodTypeContainer.removeAllViews();
         bloodTypeInputs.clear();
 
+        List<BloodTypeProgress> bloodProgress = eventDetails.getBloodProgress();
+        Log.d("EditEvent", "Blood Progress: " + bloodProgress); // Debug log
+
+        Map<String, Double> currentTargets = new HashMap<>();
+
+        // Get current target amounts from blood progress
+        if (bloodProgress != null) {
+            for (BloodTypeProgress progress : bloodProgress) {
+                String bloodType = progress.getBloodType();
+                double target = progress.getTargetAmount();
+                Log.d("EditEvent", "Blood Type: " + bloodType + ", Target: " + target); // Debug log
+                if (bloodType != null) {  // Add null check
+                    currentTargets.put(bloodType, target);
+                }
+            }
+        }
+
         String[] bloodTypes = {"A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"};
         LayoutInflater inflater = LayoutInflater.from(this);
 
@@ -282,21 +320,20 @@ public class EditEventActivity extends AppCompatActivity implements OnMapReadyCa
             inputLayout.setHint(bloodType + " Target (L)");
             amountInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
 
-            // Set current value if exists
-            if (eventDetails != null && eventDetails.getBloodProgress() != null) {
-                for (BloodTypeProgress progress : eventDetails.getBloodProgress()) {
-                    if (bloodType.equals(progress.getBloodType())) {
-                        amountInput.setText(String.format(Locale.getDefault(), "%.1f",
-                                progress.getTargetAmount()));
-                        break;
-                    }
-                }
+            // Pre-fill with current target (not collected amount)
+            if (currentTargets.containsKey(bloodType)) {
+                double target = currentTargets.get(bloodType);
+                Log.d("EditEvent", "Setting " + bloodType + " input to: " + target); // Debug log
+                amountInput.setText(String.format(Locale.getDefault(), "%.1f", target));
+            } else {
+                Log.d("EditEvent", "No target found for " + bloodType); // Debug log
             }
 
             bloodTypeInputs.put(bloodType, amountInput);
             bloodTypeContainer.addView(bloodTypeView);
         }
     }
+
 
     private void showDatePicker(boolean isStartDate) {
         Calendar calendar = isStartDate ? startDate : endDate;
@@ -328,49 +365,55 @@ public class EditEventActivity extends AppCompatActivity implements OnMapReadyCa
 
     private void saveChanges() {
         try {
-            // Validate inputs
-            String title = titleInput.getText().toString().trim();
-            String description = descriptionInput.getText().toString().trim();
-            String address = locationInput.getText().toString().trim();
+            // Get current targets and maintain them unless explicitly changed
+            Map<String, Double> bloodTypeTargets = new HashMap<>();
+            Set<String> newOrIncreasedTargets = new HashSet<>();
 
-            if (title.isEmpty() || address.isEmpty()) {
-                Toast.makeText(this, "Title and location are required", Toast.LENGTH_SHORT).show();
-                return;
+            // First, get all current targets
+            for (BloodTypeProgress progress : eventDetails.getBloodProgress()) {
+                bloodTypeTargets.put(progress.getBloodType(), progress.getTargetAmount());
             }
 
-            // Get coordinates from address
-            List<Address> addresses = new Geocoder(this).getFromLocationName(address, 1);
-            if (addresses == null || addresses.isEmpty()) {
-                Toast.makeText(this, "Invalid address", Toast.LENGTH_SHORT).show();
-                return;
+            // Then update only the ones that have been changed
+            for (Map.Entry<String, EditText> entry : bloodTypeInputs.entrySet()) {
+                String bloodType = entry.getKey();
+                String value = entry.getValue().getText().toString().trim();
+
+                if (!value.isEmpty()) {
+                    double newTarget = Double.parseDouble(value);
+                    double currentTarget = bloodTypeTargets.getOrDefault(bloodType, 0.0);
+
+                    // If target is new or increased
+                    if (newTarget > currentTarget) {
+                        newOrIncreasedTargets.add(bloodType);
+                    }
+
+                    // Update target
+                    bloodTypeTargets.put(bloodType, newTarget);
+                }
+                // If value is empty, keep the existing target (don't remove it)
             }
 
-            UpdateEventDTO updateDto = new UpdateEventDTO();
-            updateDto.setTitle(title);
-            updateDto.setDescription(description);
+            UpdateEventDTO updateDto = new UpdateEventDTO(eventDetails);
+            updateDto.setTitle(titleInput.getText().toString().trim());
+            updateDto.setDescription(descriptionInput.getText().toString().trim());
             updateDto.setStartTime(startDate.getTimeInMillis());
             updateDto.setEndTime(endDate.getTimeInMillis());
             updateDto.setAddress(address);
-            updateDto.setLatitude(addresses.get(0).getLatitude());
-            updateDto.setLongitude(addresses.get(0).getLongitude());
+            updateDto.setLatitude(latitude);
+            updateDto.setLongitude(longitude);
+            updateDto.setBloodTypeTargets(bloodTypeTargets);  // This won't affect collected amounts
             updateDto.setDonationStartTime(startTime);
             updateDto.setDonationEndTime(endTime);
 
-            // Collect blood type targets
-            Map<String, Double> bloodTypeTargets = new HashMap<>();
-            for (Map.Entry<String, EditText> entry : bloodTypeInputs.entrySet()) {
-                String value = entry.getValue().getText().toString();
-                if (!value.isEmpty()) {
-                    bloodTypeTargets.put(entry.getKey(), Double.parseDouble(value));
-                }
-            }
-            updateDto.setBloodTypeTargets(bloodTypeTargets);
-
-            // Save changes
             ApiResponse<DonationEvent> response = ServiceLocator.getEventService()
                     .updateEvent(eventId, updateDto);
+
             if (response.isSuccess()) {
-                notifyParticipants(eventId, updateDto.getTitle());
+                // Notify only for new or increased targets
+                if (!newOrIncreasedTargets.isEmpty()) {
+                    notifyBloodTypeNeeded(eventId, updateDto.getTitle(), newOrIncreasedTargets);
+                }
 
                 Toast.makeText(this, "Changes saved successfully", Toast.LENGTH_SHORT).show();
                 finish();
@@ -378,41 +421,37 @@ public class EditEventActivity extends AppCompatActivity implements OnMapReadyCa
                 Toast.makeText(this, response.getMessage(), Toast.LENGTH_SHORT).show();
             }
 
-        } catch (IOException e) {
-            Toast.makeText(this, "Error validating address", Toast.LENGTH_SHORT).show();
         } catch (NumberFormatException e) {
             Toast.makeText(this, "Invalid blood type target values", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void notifyParticipants(String eventId, String eventTitle) {
-        try {
-            // Get all registrations for this event
-            List<Registration> registrations = ServiceLocator.getRegistrationRepository()
-                    .getEventRegistrations(eventId);
+    private void notifyBloodTypeNeeded(String eventId, String eventTitle, Set<String> bloodTypes) {
+        NotificationManager notificationManager = new NotificationManager(
+                this, ServiceLocator.getDatabaseHelper());
 
-            // Extract unique user IDs
-            List<String> userIds = registrations.stream()
-                    .map(Registration::getUserId)
-                    .distinct()
+        try {
+            // Get all donor users
+            List<User> donors = ServiceLocator.getUserRepository()
+                    .findUsersByTimeRange(0, System.currentTimeMillis())  // Get all users
+                    .stream()
+                    .filter(user -> user.getUserType() == UserType.DONOR &&
+                            user.getBloodType() != null &&
+                            bloodTypes.contains(user.getBloodType()))
                     .collect(Collectors.toList());
 
-            // Create notifications
-            NotificationManager notificationManager = new NotificationManager(
-                    this, ServiceLocator.getDatabaseHelper());
-            notificationManager.notifyEventUpdate(eventId, eventTitle, userIds);
-
-            // Reschedule reminders if date/time changed
-            for (String userId : userIds) {
-                notificationManager.scheduleEventReminders(
-                        userId,
+            for (User donor : donors) {
+                notificationManager.createEventNotification(
+                        donor.getUserId(),
                         eventId,
-                        eventTitle,
-                        eventDetails.getStartTime()
+                        "New Blood Type Needed",
+                        String.format("Event '%s' now needs your blood type: %s",
+                                eventTitle, donor.getBloodType()),
+                        NotificationType.BLOOD_TYPE_MATCH
                 );
             }
         } catch (AppException e) {
-            Log.e("EditEventActivity", "Error notifying participants", e);
+            Log.e("EditEventActivity", "Error notifying donors", e);
         }
     }
 }

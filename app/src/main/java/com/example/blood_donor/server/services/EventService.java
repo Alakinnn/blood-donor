@@ -181,10 +181,11 @@ public class EventService implements IEventService {
     }
 
     private List<BloodTypeProgress> buildBloodProgress(Map<String, BloodTypeRequirement> requirements) {
-        return requirements.values().stream()
-                .map(req -> new BloodTypeProgress(
-                        req.getTargetAmount(),
-                        req.getCollectedAmount()
+        return requirements.entrySet().stream()
+                .map(entry -> new BloodTypeProgress(
+                        entry.getKey(),
+                        entry.getValue().getTargetAmount(),
+                        entry.getValue().getCollectedAmount()
                 ))
                 .collect(Collectors.toList());
     }
@@ -231,6 +232,7 @@ public class EventService implements IEventService {
 
                                 // Add to progress list
                                 bloodProgress.add(new BloodTypeProgress(
+                                        req.getBloodType(),
                                         req.getTargetAmount(),
                                         req.getCollectedAmount()
                                 ));
@@ -290,11 +292,8 @@ public class EventService implements IEventService {
     public ApiResponse<EventDetailDTO> getEventDetails(String eventId, String userId) {
         try {
             if (eventId == null) {
-                Log.e("EventService", "Attempted to get details for null event ID");
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event ID cannot be null");
             }
-
-            Log.d("EventService", "Fetching event with ID: " + eventId);
 
             // First check cache
             Optional<EventDetailDTO> cachedEvent = cacheService.getCachedEventDetails(eventId);
@@ -318,7 +317,6 @@ public class EventService implements IEventService {
             // Load from database with full error logging
             Optional<DonationEvent> eventOpt = eventRepository.findById(eventId);
             if (!eventOpt.isPresent()) {
-                Log.w("EventService", "Event not found in database: " + eventId);
                 return ApiResponse.error(ErrorCode.INVALID_INPUT, "Event not found");
             }
 
@@ -327,7 +325,6 @@ public class EventService implements IEventService {
             // Load host information with null check
             String hostId = event.getHostId();
             if (hostId == null) {
-                Log.w("EventService", "Event has no host ID: " + eventId);
                 return ApiResponse.error(ErrorCode.DATABASE_ERROR, "Event has no host information");
             }
 
@@ -353,6 +350,7 @@ public class EventService implements IEventService {
             // Convert blood requirements to progress list
             List<BloodTypeProgress> bloodProgress = event.getBloodRequirements().values().stream()
                     .map(req -> new BloodTypeProgress(
+                            req.getBloodType(),
                             req.getTargetAmount(),
                             req.getCollectedAmount()
                     ))
@@ -476,7 +474,7 @@ public class EventService implements IEventService {
             Log.d("EventService", String.format("Blood type %s - Target: %.2f, Collected: %.2f",
                     entry.getKey(), targetAmount, collectedAmount));
 
-            bloodProgress.add(new BloodTypeProgress(targetAmount, collectedAmount));
+            bloodProgress.add(new BloodTypeProgress(req.getBloodType(), targetAmount, collectedAmount));
         }
 
         summary.setBloodGoal(totalGoal);

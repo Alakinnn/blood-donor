@@ -6,9 +6,10 @@ public class BloodTypeProgress {
     private double collectedAmount;
     private double progressPercentage;
 
-    public BloodTypeProgress(double targetAmount, double collectedAmount) {
+    public BloodTypeProgress(String bloodType, double targetAmount, double collectedAmount) {
         this.targetAmount = targetAmount;
         this.collectedAmount = collectedAmount;
+        this.bloodType = bloodType;
     }
 
     public String getBloodType() {
