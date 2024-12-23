@@ -203,11 +203,23 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
                         return;
                     }
 
+                    // Validate end date comes after start date
+                    if (!isStartDate && selectedStartDate > 0) {
+                        if (selectedCal.getTimeInMillis() < selectedStartDate) {
+                            Toast.makeText(requireContext(),
+                                    "End date must be after start date",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+
                     if (isStartDate) {
                         selectedStartDate = selectedCal.getTimeInMillis();
+                        startDate = selectedStartDate; // Set the value used in validation
                         startDateBtn.setText(dateFormat.format(selectedCal.getTime()));
                     } else {
                         selectedEndDate = selectedCal.getTimeInMillis();
+                        endDate = selectedEndDate; // Set the value used in validation
                         endDateBtn.setText(dateFormat.format(selectedCal.getTime()));
                     }
                 },
@@ -216,8 +228,15 @@ public class CreateEventFragment extends Fragment implements OnMapReadyCallback 
                 calendar.get(Calendar.DAY_OF_MONTH)
         );
 
-        // Set minimum date to 3 days from now
-        datePickerDialog.getDatePicker().setMinDate(minDate.getTimeInMillis());
+        // Set minimum date constraints
+        if (isStartDate) {
+            datePickerDialog.getDatePicker().setMinDate(minDate.getTimeInMillis());
+        } else {
+            // For end date, minimum should be either 3 days from now or the start date, whichever is later
+            long minEndDate = Math.max(minDate.getTimeInMillis(), selectedStartDate);
+            datePickerDialog.getDatePicker().setMinDate(minEndDate);
+        }
+
         datePickerDialog.show();
     }
 

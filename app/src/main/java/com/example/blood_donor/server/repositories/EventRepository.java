@@ -745,28 +745,47 @@ public class EventRepository implements IEventRepository {
             db = dbHelper.getWritableDatabase();
             db.beginTransaction();
 
-            // First verify the event exists and get its current state
-            String selectQuery = "SELECT e.*, l.id AS location_id, l.address, l.latitude, l.longitude " +
-                    "FROM " + TABLE_EVENTS + " e " +
-                    "JOIN " + TABLE_LOCATIONS + " l ON e.location_id = l.id " +
-                    "WHERE e.id = ?";
+            // First verify the event exists and get current state with proper aliasing
+            String selectQuery =
+                    "SELECT e.blood_collected " +
+                            "FROM " + TABLE_EVENTS + " e " +
+                            "WHERE e.id = ?";
 
             cursor = db.rawQuery(selectQuery, new String[]{eventId});
 
-            if (!cursor.moveToFirst()) {
-                throw new AppException(ErrorCode.INVALID_INPUT, "Event not found");
+            JSONObject currentCollected = new JSONObject();
+            if (cursor.moveToFirst()) {
+                String collectedJson = cursor.getString(cursor.getColumnIndexOrThrow("blood_collected"));
+                if (collectedJson != null) {
+                    currentCollected = new JSONObject(collectedJson);
+                }
             }
+            cursor.close();
 
-            // Update the location first if address changed
-            String locationId = cursor.getString(cursor.getColumnIndexOrThrow("location_id"));
-            if (!cursor.getString(cursor.getColumnIndexOrThrow("address")).equals(updateDto.getAddress())) {
-                ContentValues locationValues = new ContentValues();
-                locationValues.put("address", updateDto.getAddress());
-                locationValues.put("latitude", updateDto.getLatitude());
-                locationValues.put("longitude", updateDto.getLongitude());
-                locationValues.put("updated_at", System.currentTimeMillis());
+            // Update location if address changed
+            ContentValues locationValues = new ContentValues();
+            locationValues.put("address", updateDto.getAddress());
+            locationValues.put("latitude", updateDto.getLatitude());
+            locationValues.put("longitude", updateDto.getLongitude());
+            locationValues.put("updated_at", System.currentTimeMillis());
 
-                db.update(TABLE_LOCATIONS, locationValues, "id = ?", new String[]{locationId});
+            // Get current blood collection and update appropriately
+            JSONObject newCollected = new JSONObject();
+            JSONObject bloodTypeTargets = new JSONObject(updateDto.getBloodTypeTargets());
+
+            // For each blood type in the new targets
+            Iterator<String> keys = bloodTypeTargets.keys();
+
+            // For each blood type in the new targets
+            while (keys.hasNext()) {
+                String bloodType = keys.next();
+                if (currentCollected.has(bloodType)) {
+                    // Keep existing collected amount
+                    newCollected.put(bloodType, currentCollected.get(bloodType));
+                } else {
+                    // Only initialize new blood types with 0
+                    newCollected.put(bloodType, 0.0);
+                }
             }
 
             // Update event details
@@ -775,7 +794,8 @@ public class EventRepository implements IEventRepository {
             eventValues.put("description", updateDto.getDescription());
             eventValues.put("start_time", updateDto.getStartTime());
             eventValues.put("end_time", updateDto.getEndTime());
-            eventValues.put("blood_type_targets", new JSONObject(updateDto.getBloodTypeTargets()).toString());
+            eventValues.put("blood_type_targets", bloodTypeTargets.toString());
+            eventValues.put("blood_collected", newCollected.toString());
             eventValues.put("donation_start_time", updateDto.getDonationStartTime().toString());
             eventValues.put("donation_end_time", updateDto.getDonationEndTime().toString());
             eventValues.put("updated_at", System.currentTimeMillis());
@@ -787,9 +807,17 @@ public class EventRepository implements IEventRepository {
 
             db.setTransactionSuccessful();
 
-            // Return updated event
+            // Get updated event with proper table aliasing
+            String getUpdatedEventQuery =
+                    "SELECT e.*, l.id AS location_id, l.address, l.latitude, l.longitude, l.description AS location_description " +
+                            "FROM " + TABLE_EVENTS + " e " +
+                            "JOIN " + TABLE_LOCATIONS + " l ON e.location_id = l.id " +
+                            "WHERE e.id = ?";
+
             return findById(eventId);
 
+        } catch (JSONException e) {
+            throw new AppException(ErrorCode.DATABASE_ERROR, "Error processing blood type data: " + e.getMessage());
         } finally {
             if (cursor != null) cursor.close();
             if (db != null) {
