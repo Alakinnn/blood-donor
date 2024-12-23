@@ -21,6 +21,19 @@
         <item name="materialButtonStyle">@style/Widget.BloodDonor.Button</item>
         <item name="textInputStyle">@style/Widget.BloodDonor.TextInputLayout</item>
         <item name="cardViewStyle">@style/Widget.BloodDonor.CardView</item>
+        <item name="android:windowActivityTransitions">true</item>
+
+        <!-- Enable window content transitions -->
+        <item name="android:windowContentTransitions">true</item>
+
+        <!-- Specify default transition duration -->
+        <item name="android:windowEnterTransition">@android:transition/fade</item>
+        <item name="android:windowExitTransition">@android:transition/fade</item>
+
+        <!-- Enable overlap of transitions -->
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+
     </style>
 
     <!-- Button style -->
