@@ -14,7 +14,7 @@ import com.example.blood_donor.R;
 public class IntroSliderAdapter extends RecyclerView.Adapter<IntroSliderAdapter.SlideViewHolder> {
 
     private static final int[] SLIDE_IMAGES = new int[]{
-            R.drawable.intro_3,
+            R.drawable.intro_1,
             R.drawable.intro_2,
             R.drawable.intro_3
     };
